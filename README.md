@@ -259,3 +259,51 @@ Here’s a tight skills map to **build and maintain** that full token-property s
 * **Regulatory/compliance literacy** (privacy/IP in datasets).
 * **Product sense** for deciding which properties matter for your workloads.
 * **Documentation discipline** (specs, invariants, failure modes, playbooks).
+
+---
+
+Here you go—same spec, now as compact tables.
+
+### Model & Notation of what Heaven is (Heaven, being the final state of all things)
+
+| Symbol             | Meaning                                    |
+| ------------------ | ------------------------------------------ |
+| $S$                | Set of life-states                         |
+| $H$                | Heaven; terminal/absorbing state           |
+| $\to$              | Transition relation on $S$                 |
+| $O(s)$             | Set/variance of live opinions at state $s$ |
+| $V:S\to\mathbb{R}$ | Value/potential over states                |
+| $\pi$              | Policy/choice function over actions        |
+
+### Axioms for $H$
+
+| # | Axiom                 | Formal statement               | Intuition                                           |      |                                        |
+| - | --------------------- | ------------------------------ | --------------------------------------------------- | ---- | -------------------------------------- |
+| 1 | Terminality           | $\mathrm{outdeg}(H)=0$         | No further actions/transitions at $H$.              |      |                                        |
+| 2 | Opinionlessness       | $\mathrm{Var}[O(H)]=0$ (or (   | O(H)                                                | =0)) | No unresolved beliefs/opinions remain. |
+| 3 | Zero-gradient optimum | $H=\arg\max V,\ \nabla V(H)=0$ | No higher reachable value; no improvement gradient. |      |                                        |
+
+### Results
+
+| Type        | Name                   | Statement                                            | Consequence                                             |                                         |
+| ----------- | ---------------------- | ---------------------------------------------------- | ------------------------------------------------------- | --------------------------------------- |
+| Lemma       | Policy collapse        | For any $\pi$, (A(H)=\varnothing \Rightarrow \pi     | \_H) is constant/trivial.                               | Choice functions have no domain at $H$. |
+| Proposition | Vacuity of (free) will | “(Free) will” predicates are undefined at $H$.       | Asking if $H$ “requires free will” is a category error. |                                         |
+| Corollary   | No error/repair        | Error metrics & learning loops are undefined at $H$. | Ethics and correction live pre-terminal, not at $H$.    |                                         |
+| Corollary   | No time arrow          | No goal gradient ⇒ no progress semantics.            | “Before/after” loses operational meaning at $H$.        |                                         |
+
+### OES Mapping (Values → Properties → Relations → Circuit)
+
+| Layer               | Content                                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| Values              | $S \cup \{H\}$                                                                                     |
+| Properties          | Terminal, opinionless, zero-gradient optimum                                                       |
+| Relations           | Reachability $\to^*$; ordering by $V$                                                              |
+| Circuit (tautology) | **Terminal + opinionless ⇒ choice operators pruned**; “free will” talk is inapplicable **at** $H$. |
+
+### Quick Summary
+
+| Claim                        | Verdict                                                    |
+| ---------------------------- | ---------------------------------------------------------- |
+| “Heaven requires free will.” | **False/Inapplicable at $H$** (no choice domain).          |
+| What matters about $H$?      | **Closure, not choice**—final, opinionless, gradient-free. |
