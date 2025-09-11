@@ -157,3 +157,105 @@ If we treat “token design” as a first-class engineering problem, here’s a 
 * Split properties into **static** (Unicode, tokenizer) vs **dynamic** (frequency, geometry, safety priors) to enable incremental updates.
 * Persist per-token rows in a columnar store; recompute **dynamic** properties per release.
 * Many properties are **vectors** (attention profile, semantic axes); store with small fixed dims and version their computation pipeline.
+
+---
+
+Here’s a tight skills map to **build and maintain** that full token-property set.
+
+# Core skill domains
+
+* **Unicode & i18n engineering**
+
+  * Unicode normalization (NFC/NFKC/NFD/NFKD), grapheme clusters (UAX #29), bidi (UAX #9), scripts (ISO 15924), width/ZWJ/ZWNJ.
+  * Confusables/homoglyph detection, RTL/LTR safety, emoji/ZWJ sequences.
+  * Tooling: ICU, Python `unicodedata`, regex with Unicode classes.
+
+* **Tokenizer algorithms**
+
+  * BPE/BBPE, WordPiece, Unigram/SentencePiece; merge tables, ranks, and costs.
+  * Detokenization rules (joiners/spaces/newlines), word-boundary heuristics.
+  * Building/curating vocabularies from large corpora; OOV/byte fallback design.
+
+* **Corpus engineering & data pipelines**
+
+  * Web-scale text collection, dedup (MinHash/LSH), cleaning, language ID, script ID.
+  * Distributed processing (Spark/Ray/Dask), columnar stores (Parquet), dataset versioning.
+
+* **Morphology & lexicon**
+
+  * Lemmatization, affixes/clitics, subword morphology across languages.
+  * POS tagging priors; lexicon induction and alignment across languages.
+
+* **Syntax, semantics, and domain tagging**
+
+  * Sentence/phrase boundary detection, punctuation classification.
+  * NER/domain classifiers (medical/legal/code/math/web/social).
+  * Numeric/unit parsing (SI, currency, time/date, %, angles).
+
+* **Code/structured-text literacy**
+
+  * Language-agnostic lexing (e.g., Tree-sitter concepts), indentation/dedent rules.
+  * JSON/XML/HTML escaping, string delimiters, escape sequences.
+  * Heuristics for code token safety in prompts and outputs.
+
+* **Statistics & information theory**
+
+  * Unigram/doc frequency, PMI/MI with neighbors, Zipf/Pareto behavior.
+  * Surprisal/entropy estimation, burstiness/overdispersion, topic skew (LDA/embeddings).
+
+* **Representation analysis (model-internal)**
+
+  * Embedding geometry (norms, hubness), clustering, manifold viz (PCA/UMAP).
+  * Attention/activation profiling across layers/heads; probing tasks.
+  * Calibration/error analysis; gradient-based sensitivity (when available).
+
+* **Decoding & constraint design**
+
+  * Top-k/p, temperature, beams, self-consistency; logit bias safely.
+  * CFG/PEG/regex/JSON-schema constrained decoding; bracket/quote pairing guards.
+  * Stopword policies, “end-token risk” and beam collapse mitigation.
+
+* **Safety, privacy, and policy engineering**
+
+  * PII detection/redaction, toxicity/abuse taxonomies, jailbreak pattern detection.
+  * Region-specific sensitive lexicons; copyright/lyrics detection.
+  * Auditability, least-privilege data handling, privacy reviews.
+
+* **Robustness & security**
+
+  * Unicode attacks (invisibles, bidi, homoglyphs), mixed-script risks.
+  * Noise models (OCR/ASR), typo neighborhoods, canonicalization effects.
+  * Canary/memorization checks; overfit signatures.
+
+* **Cross-lingual & transliteration**
+
+  * Script mixing/code-switch detection, transliteration maps, G2P basics.
+  * Coverage analysis across languages; transfer learning considerations.
+
+* **Evaluation science**
+
+  * Per-token ablations, Δ-metrics attribution, significance testing & power analysis.
+  * Golden sets and adversarial suites; reliability dashboards.
+
+* **MLOps & metadata systems**
+
+  * JSON Schema design for token properties; lineage & provenance.
+  * Experiment tracking (MLflow/W\&B), CI for tokenizers, reproducible builds.
+  * Columnar analytics + feature stores; scheduled recomputation of dynamic fields.
+
+* **Software engineering**
+
+  * Python/C++ tokenizer libs; high-perf string/byte ops; SIMD where useful.
+  * Test harnesses (property-based tests), fuzzing for detok correctness.
+  * API design for querying token properties at training/serving time.
+
+* **Visualization & UX**
+
+  * Dashboards for distributions, MI graphs, confusables, attention heatmaps.
+  * Interactive diffs between vocab versions; drill-downs to raw evidence.
+
+# Nice-to-have (accelerators)
+
+* **Regulatory/compliance literacy** (privacy/IP in datasets).
+* **Product sense** for deciding which properties matter for your workloads.
+* **Documentation discipline** (specs, invariants, failure modes, playbooks).
