@@ -1,1 +1,861 @@
-buffer text
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WARD — Whole-App Relational Designer</title>
+  <style>
+
+    :root{
+      --bg:#f7f7f7;
+      --panel:#ffffff;
+      --ink:#222;
+      --ink-muted:#555;
+      --border:#cfcfcf;
+      --accent:#9a9a9a;
+      --accent-2:#bdbdbd;
+      --accent-3:#e0e0e0;
+      --focus:#5a5a5a;
+      --code:#111;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      padding:18px;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:var(--sans);
+      line-height:1.45;
+    }
+
+    header{
+      max-width:1200px;
+      margin:0 auto 16px auto;
+      padding:10px 0 14px 0;
+      border-bottom:1px solid var(--border);
+    }
+    h1{margin:0 0 6px 0; font-weight:650; letter-spacing:.2px}
+    p.sub{margin:0; color:var(--ink-muted)}
+
+    main{max-width:1200px; margin:0 auto}
+
+    .app-tabs{
+      display:flex; gap:6px; flex-wrap:wrap;
+      border-bottom:1px solid var(--border);
+      margin-bottom:14px;
+    }
+    .tab-button{
+      border:1px solid transparent;
+      border-bottom-color: var(--border);
+      padding:10px 14px;
+      background:transparent;
+      color:var(--ink);
+      cursor:pointer;
+      border-radius:8px 8px 0 0;
+      font-weight:600;
+    }
+    .tab-button:hover{background:var(--accent-3)}
+    .tab-button.active{
+      background:var(--panel);
+      border-color:var(--border);
+      border-bottom-color:var(--panel);
+    }
+
+    .content-panel{display:none}
+    .content-panel.active{display:block; animation:fade .2s}
+    @keyframes fade{from{opacity:0}to{opacity:1}}
+
+    .operation-section{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      box-shadow: 0 1px 0 rgba(0,0,0,.04);
+      padding:16px;
+      margin-bottom:14px;
+    }
+    .operation-container{display:flex; gap:16px; flex-wrap:wrap}
+    .operation-controls,.operation-result{flex:1 1 360px; min-width:320px}
+
+    h2,h3{margin:0 0 10px 0; font-weight:650}
+    h3{color:var(--ink)}
+
+    .row-gap{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+    label{font-size:.95rem; color:var(--ink)}
+
+    button{
+      background:var(--focus);
+      color:#fff;
+      border:1px solid var(--focus);
+      border-radius:8px;
+      padding:10px 14px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    button:hover{filter:brightness(1.08)}
+    button:disabled{background:var(--accent); border-color:var(--accent); cursor:not-allowed;}
+
+    input,textarea,select{
+      background:#fff;
+      color:var(--ink);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:10px 12px;
+      font-family:var(--mono);
+    }
+    textarea{width:100%; min-height:120px; resize:vertical}
+
+    .result-container{
+      background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px;
+      font-family:var(--mono); color:var(--code); white-space:pre-wrap; word-break:break-word;
+    }
+
+    #grid-canvas{border:1px solid var(--border); width:100%; max-width:640px; height:auto; background:#f1f1f1}
+    #color-bar{width:100%; height:20px; border:1px solid var(--border); border-radius:5px; background:var(--accent-2)}
+
+    #color-list{list-style:none; margin:0; padding:0; border:1px solid var(--border); max-height:260px; overflow:auto}
+    #color-list li{padding:6px 10px; border-bottom:1px solid var(--border); background:var(--panel)}
+
+    ul.flat{list-style:none; margin:0; padding:0}
+    ul.flat li{padding:6px 10px; border-bottom:1px solid var(--border)}
+
+    small.help{color:var(--ink-muted)}
+
+    #toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      background:#111; color:#fff; padding:10px 14px; border-radius:10px;
+      display:none; z-index:10
+    }
+
+    /* keep everything greyscale except canvas tiles rendered by JS */
+
+  </style>
+</head>
+<body>
+<header>
+  <h1>WARD — Whole‑App Relational Designer</h1>
+  <p class="sub">Self‑contained charset→ID→colour‑grid system with text & integer sequencing, terrain configuration, sessions, and exports. Greyscale UI; colour appears only in the grids.</p>
+</header>
+
+<nav class="app-tabs" role="tablist">
+  <button class="tab-button active" data-tab="grid">Grid Visualization</button>
+  <button class="tab-button" data-tab="pipeline">Pipeline</button>
+  <button class="tab-button" data-tab="sessions">Sessions</button>
+</nav>
+
+<main>
+  <!-- Grid Visualization -->
+  <section id="panel-grid" class="content-panel active">
+    <div class="operation-section">
+      <div class="operation-container">
+        <div class="operation-controls">
+          <h2>Grid Controls</h2>
+          <div class="row-gap">
+            <label>Tile Size <input id="tile-size" type="number" min="4" value="64" style="width:100px"></label>
+            <button id="save-settings">Save Settings</button>
+          </div>
+
+          <div id="compounded-id-input-container">
+            <h3>Compounded Grid IDs</h3>
+            <p class="sub">Enter one or more Compounded Grid IDs or load them from a file.</p>
+            <div id="compounded-id-inputs">
+              <div class="compounded-id-input-row">
+                <input class="compounded-id-input" type="text" placeholder="Enter Compounded Grid ID">
+              </div>
+            </div>
+            <div class="row-gap" style="margin-top:6px">
+              <button id="generate-grid-by-id">Generate Grids</button>
+              <button id="save-grid-to-db" disabled>Save Current Grid</button>
+            </div>
+
+            <hr style="border:none; border-top:1px solid var(--border); margin:12px 0">
+
+            <div class="row-gap">
+              <input type="file" id="file-input" accept=".txt,.json">
+              <button id="execute-button">Process File</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="operation-result">
+          <h3>Grid Display</h3>
+          <canvas id="grid-canvas"></canvas>
+          <div id="navigation-controls" class="row-gap" style="justify-content:center; margin-top:8px">
+            <button id="prev-grid" disabled>Previous</button>
+            <span id="current-grid-position">Grid 0 of 0</span>
+            <button id="next-grid" disabled>Next</button>
+          </div>
+          <div class="row-gap" style="margin-top:8px">
+            <button id="download-grid-image" disabled>Download PNG</button>
+            <button id="export-current-grid" disabled>Export Grid JSON</button>
+          </div>
+
+          <h3 style="margin-top:12px">Current Grid Tile IDs</h3>
+          <div id="current-grid-id" class="result-container"></div>
+          <ul id="color-list"></ul>
+
+          <h3 style="margin-top:12px">Grid Validation</h3>
+          <div id="color-bar" title="No grid yet."></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pipeline -->
+  <section id="panel-pipeline" class="content-panel">
+    <div class="operation-section">
+      <div class="operation-container">
+        <div class="operation-controls">
+          <h2>Pipeline — Sequencing & Terrain Configurator</h2>
+
+          <h3>1) Text → Colour Grid IDs</h3>
+          <p class="sub">TAB and newline aware. Or load a .txt/.json file.</p>
+          <div class="row-gap">
+            <input type="file" id="pp-text-file" accept=".txt,.json">
+            <button id="pp-text-process">Process Text File</button>
+          </div>
+          <textarea id="pp-text" placeholder="Paste text here..."></textarea>
+          <div class="row-gap">
+            <label><input type="checkbox" id="pp-split-nl" checked> Split on newline</label>
+            <label><input type="checkbox" id="pp-split-tab"> Split on TAB</label>
+            <label><input type="checkbox" id="pp-include-empty"> Include empty</label>
+          </div>
+          <button id="pp-text-make">Make Grid IDs from Text</button>
+
+          <hr style="border:none; border-top:1px solid var(--border); margin:12px 0">
+
+          <h3>2) Integers → Grid IDs (+ try Text)</h3>
+          <div class="row-gap">
+            <input type="file" id="pp-int-file" accept=".txt,.json">
+            <button id="pp-int-process">Process Integer File</button>
+          </div>
+          <textarea id="pp-ints" placeholder="One integer per line..."></textarea>
+          <div class="row-gap">
+            <label><input type="radio" name="pp-int-mode" value="stringid" checked> Interpret as String ID</label>
+            <label><input type="radio" name="pp-int-mode" value="gridid"> Interpret as Grid ID</label>
+            <label><input type="checkbox" id="pp-try-decode-text" checked> Try decode text</label>
+          </div>
+          <button id="pp-int-make">Make Grid IDs from Integers</button>
+
+          <hr style="border:none; border-top:1px solid var(--border); margin:12px 0">
+
+          <h3>3) Configure Map Terrains</h3>
+          <div class="row-gap">
+            <label>Mosaic Across (m) <input id="pp-mz-across" type="number" min="1" value="2" style="width:80px"></label>
+            <label>Mosaic Down (k) <input id="pp-mz-down" type="number" min="1" value="2" style="width:80px"></label>
+            <label>Max Mosaic Permutations <input id="pp-mz-max" type="number" min="1" value="24" style="width:100px"></label>
+          </div>
+          <div class="row-gap">
+            <label>Compose Mode
+              <select id="pp-cmp-mode">
+                <option>normal</option><option>max</option><option>min</option><option>multiply</option><option>overlay</option>
+              </select>
+            </label>
+            <label>Compose Alpha <input id="pp-cmp-alpha" type="number" min="0" max="1" step="0.05" value="1" style="width:100px"></label>
+            <label>Max Layers per Composite <input id="pp-cmp-k" type="number" min="2" value="3" style="width:80px"></label>
+            <label>Max Composites <input id="pp-cmp-max" type="number" min="1" value="24" style="width:100px"></label>
+          </div>
+          <div class="row-gap">
+            <button id="pp-configure">Generate Terrains</button>
+            <button id="pp-export-manifest">Export Manifest JSON</button>
+          </div>
+          <div id="pp-status" style="margin-top:6px; color:var(--ink-muted)"></div>
+        </div>
+
+        <div class="operation-result">
+          <h3>Working Set (Grid IDs)</h3>
+          <ul id="pp-gridids" class="flat" style="max-height:240px; overflow:auto"></ul>
+          <h3 style="margin-top:12px">Results</h3>
+          <ul id="pp-results" class="flat" style="max-height:300px; overflow:auto"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sessions -->
+  <section id="panel-sessions" class="content-panel">
+    <div class="operation-section">
+      <div class="operation-container">
+        <div class="operation-controls">
+          <h2>Sessions</h2>
+          <div class="row-gap">
+            <button id="save-session">Save Session</button>
+            <button id="load-latest-session">Load Latest</button>
+            <button id="export-session">Export Session JSON</button>
+            <input id="import-session-file" type="file" accept=".json">
+            <button id="import-session">Import Session</button>
+          </div>
+          <div class="row-gap" style="margin-top:8px">
+            <label>Session Name <input type="text" id="session-name" placeholder="Optional label"></label>
+          </div>
+          <h3 style="margin-top:12px">History</h3>
+          <ul id="history-list" class="flat" style="max-height:280px; overflow:auto"></ul>
+        </div>
+
+        <div class="operation-result">
+          <h3>Saved Grids</h3>
+          <ul id="saved-grids" class="flat" style="max-height:360px; overflow:auto"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ---------------- IndexedDB wrapper + localStorage fallback ----------------
+(function(global){
+  const DB_NAME = 'WARDDB';
+  const DB_VERSION = 1;
+  const STORE_SETTINGS = 'settings';
+  const STORE_SESSIONS = 'sessions';
+  const STORE_GRIDS = 'grids';
+
+  function withIDB(action){
+    return new Promise((resolve, reject)=>{
+      if(!('indexedDB' in global)) return reject(new Error('IndexedDB not supported'));
+      const openReq = indexedDB.open(DB_NAME, DB_VERSION);
+      openReq.onupgradeneeded = ()=>{
+        const db = openReq.result;
+        if(!db.objectStoreNames.contains(STORE_SETTINGS)) db.createObjectStore(STORE_SETTINGS, { keyPath:'id' });
+        if(!db.objectStoreNames.contains(STORE_SESSIONS)){
+          const s = db.createObjectStore(STORE_SESSIONS, { keyPath:'id', autoIncrement:true });
+          s.createIndex('ts', 'ts');
+        }
+        if(!db.objectStoreNames.contains(STORE_GRIDS)){
+          const g = db.createObjectStore(STORE_GRIDS, { keyPath:'id' });
+          g.createIndex('ts', 'ts');
+        }
+      };
+      openReq.onerror = ()=> reject(openReq.error);
+      openReq.onsuccess = ()=> action(openReq.result).then(resolve, reject);
+    });
+  }
+
+  function idbGet(store, key){
+    return withIDB(db => new Promise((resolve, reject)=>{
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).get(key);
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    }));
+  }
+  function idbPut(store, value){
+    return withIDB(db => new Promise((resolve, reject)=>{
+      const tx = db.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).put(value);
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    }));
+  }
+  function idbGetAll(store, index=null, direction='prev'){
+    return withIDB(db => new Promise((resolve, reject)=>{
+      const tx = db.transaction(store, 'readonly');
+      const os = tx.objectStore(store);
+      const source = index ? os.index(index) : os;
+      const results = [];
+      const req = source.openCursor(null, direction);
+      req.onsuccess = e=>{
+        const cursor = e.target.result;
+        if(cursor){ results.push(cursor.value); cursor.continue(); }
+        else resolve(results);
+      };
+      req.onerror = ()=> reject(req.error);
+    }));
+  }
+  function idbDelete(store, key){
+    return withIDB(db => new Promise((resolve, reject)=>{
+      const tx = db.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).delete(key);
+      req.onsuccess = ()=> resolve(true);
+      req.onerror = ()=> reject(req.error);
+    }));
+  }
+
+  // Fallbacks
+  function lsGet(key){ try{ return Promise.resolve(JSON.parse(localStorage.getItem(key))); }catch(e){ return Promise.resolve(null);} }
+  function lsSet(key, v){ try{ localStorage.setItem(key, JSON.stringify(v)); return Promise.resolve(true);}catch(e){ return Promise.reject(e);} }
+  function lsList(prefix){
+    const res=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith(prefix)){ try{ res.push(JSON.parse(localStorage.getItem(k))); }catch(e){} }
+    }
+    return Promise.resolve(res);
+  }
+  function lsDel(key){ try{ localStorage.removeItem(key); return Promise.resolve(true);}catch(e){ return Promise.reject(e);} }
+
+  const api = {
+    async saveSettings(settings){ try{ await idbPut(STORE_SETTINGS,{id:'global',...settings}); }catch(e){ await lsSet('settings:global', settings);} return true; },
+    async loadSettings(){ try{ const v = await idbGet(STORE_SETTINGS,'global'); return v || (await lsGet('settings:global')) || {}; }catch(e){ return (await lsGet('settings:global'))||{}; } },
+    async saveSession(session){ const doc={ts:Date.now(),...session}; try{ const id=await idbPut(STORE_SESSIONS, doc); return {id,...doc}; }catch(e){ const list=(await lsGet('sessions:list'))||[]; list.push(doc); await lsSet('sessions:list',list); return doc; } },
+    async listSessions(){ try{ return await idbGetAll(STORE_SESSIONS,'ts','prev'); }catch(e){ const list=(await lsGet('sessions:list'))||[]; return list.reverse(); } },
+    async saveGrid(grid){ const id = grid.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())); const doc={id, ts:Date.now(), ...grid}; try{ await idbPut(STORE_GRIDS, doc); return doc; }catch(e){ await lsSet('grid:'+id, doc); return doc; } },
+    async listGrids(){ try{ return await idbGetAll(STORE_GRIDS,'ts','prev'); }catch(e){ return await lsList('grid:'); } },
+    async deleteGrid(id){ try{ await idbDelete(STORE_GRIDS,id); }catch(e){ await lsDel('grid:'+id); } return true; }
+  };
+  global.WardDB = api;
+})(typeof window!=='undefined'?window:globalThis);
+
+// ---------------- Shared helpers & UI glue ----------------
+(function(){
+  const toastEl = document.getElementById('toast');
+  function toast(msg, ms){ try{ toastEl.textContent=msg; toastEl.style.display='block'; clearTimeout(toastEl._t); toastEl._t=setTimeout(()=>toastEl.style.display='none', ms||2000);}catch(e){} }
+  window.toast = toast;
+
+  // Tabs
+  const tabs = document.querySelectorAll('.tab-button');
+  const panels = document.querySelectorAll('.content-panel');
+  function switchTab(t){ panels.forEach(p=>p.classList.toggle('active', p.id==='panel-'+t)); tabs.forEach(tb=>tb.classList.toggle('active', tb.dataset.tab===t)); }
+  tabs.forEach(tb=>tb.addEventListener('click', ()=> switchTab(tb.dataset.tab)));
+
+  // Charset ranges
+  const CHARSET_RANGES = [
+    { name: 'Basic Latin', range: [0x0020, 0x007F] }, { name: 'Latin-1 Supplement', range: [0x0080, 0x00FF] },
+    { name: 'Latin Extended-A', range: [0x0100, 0x017F] }, { name: 'Latin Extended-B', range: [0x0180, 0x024F] },
+    { name: 'Greek and Coptic', range: [0x0370, 0x03FF] }, { name: 'Cyrillic', range: [0x0400, 0x04FF] },
+    { name: 'Arabic', range: [0x0600, 0x06FF] }, { name: 'Hebrew', range: [0x0590, 0x05FF] },
+    { name: 'Devanagari', range: [0x0900, 0x097F] }, { name: 'Mathematical Operators', range: [0x2200, 0x22FF] },
+    { name: 'Supplemental Mathematical Operators', range: [0x2A00, 0x2AFF] }, { name: 'Miscellaneous Technical', range: [0x2300, 0x23FF] },
+    { name: 'Miscellaneous Symbols and Arrows', range: [0x2190, 0x21FF] }, { name: 'CJK Unified Ideographs', range: [0x4E00, 0x9FFF] },
+    { name: 'Hangul Syllables', range: [0xAC00, 0xD7AF] }, { name: 'Hiragana', range: [0x3040, 0x30FF] },
+    { name: 'Katakana', range: [0x30A0, 0x30FF] }, { name: 'Bopomofo', range: [0x3100, 0x312F] },
+    { name: 'Currency Symbols', range: [0x20A0, 0x20CF] }, { name: 'Additional Punctuation', range: [0x2000, 0x206F] }
+  ];
+  function generateCharset(){
+    const set = new Set();
+    CHARSET_RANGES.forEach(b=>{ for(let i=b.range[0]; i<=b.range[1]; i++){ try{ set.add(String.fromCharCode(i)); }catch(e){} } });
+    set.add('\n'); set.add('\t'); set.add('\r'); set.add('\u00A0');
+    return Array.from(set);
+  }
+  const UNIQUE_CHARSET = generateCharset();
+  const BASE = BigInt(UNIQUE_CHARSET.length);
+
+  function idToHex(id){ id = BigInt(id); if(id<=0n) return '#000000'; return '#'+(id-1n).toString(16).padStart(6,'0'); }
+  function calculateGridDimensions(numTiles){ if(numTiles===0) return {rows:0, cols:0}; const side=Math.ceil(Math.sqrt(numTiles)); return {rows:side, cols:side}; }
+  function decodeIDtoColorIndexes(idString){ if(!idString) return []; return (idString.match(/[0-9]{1,7}/g)||[]).map(s=>parseInt(s,10)); }
+  function updateColorBar(indexes){
+    const bar = document.getElementById('color-bar');
+    const isSq = (n)=> n>0 && Math.sqrt(n)%1===0;
+    const isValid = (idxs)=> idxs.every(x => Number.isFinite(x) && x>=1 && x<=16777216);
+    if(isSq(indexes.length) && isValid(indexes)){ bar.style.backgroundColor='green'; bar.title='Valid perfect square tile count.'; }
+    else { bar.style.backgroundColor='red'; bar.title='Not a perfect square tile count.'; }
+  }
+
+  // ---------------- Grid Visualization module ----------------
+  const AlphabetApp = (function(){
+    let _grids = [];
+    let _currentGridIndex = 0;
+
+    const canvas = document.getElementById('grid-canvas');
+    const ctx = canvas.getContext('2d');
+    const tileSizeEl = document.getElementById('tile-size');
+    const saveSettingsBtn = document.getElementById('save-settings');
+    const prevBtn = document.getElementById('prev-grid');
+    const nextBtn = document.getElementById('next-grid');
+    const dlBtn = document.getElementById('download-grid-image');
+    const exportGridBtn = document.getElementById('export-current-grid');
+    const saveGridBtn = document.getElementById('save-grid-to-db');
+
+    function setInputIDAndGenerate(id){
+      const inputField = document.querySelector('.compounded-id-input');
+      if(inputField){ inputField.value = id; }
+      generateGridsFromInputs();
+    }
+    function regenerateGrids(compoundedIDs){
+      _grids = compoundedIDs.map(id => (id.trim().match(/[0-9]{1,7}/g) || []).map(chunk => idToHex(chunk)));
+      _currentGridIndex = 0;
+      displayCurrentGrid();
+      toast(_grids.length + ' grid(s) generated.');
+      document.getElementById('save-grid-to-db').disabled = _grids.length === 0;
+    }
+    function generateGridsFromInputs(){
+      const ids = [...document.querySelectorAll('.compounded-id-input')].map(i => i.value.trim()).filter(Boolean);
+      if(ids.length===0){ toast('Please enter at least one ID.'); return; }
+      regenerateGrids(ids);
+      pushHistory({ type:'grids-from-ids', ids });
+    }
+    async function processUploadedFile(){
+      const file = document.getElementById('file-input').files[0];
+      if(!file){ toast('Please select a file.'); return; }
+      const text = await file.text();
+      let ids = [];
+      try {
+        if(file.name.toLowerCase().endsWith('.json')){
+          const obj = JSON.parse(text);
+          if(Array.isArray(obj.ids)) ids = obj.ids.map(String);
+        }
+      } catch (e){}
+      if(ids.length===0){ ids = text.split('\n').map(l=>l.trim()).filter(l=>/^\d+$/.test(l)); }
+      if(ids.length>0){ regenerateGrids(ids); pushHistory({ type:'grids-from-file', file:file.name, count:ids.length }); }
+      else { toast('No valid IDs found in file.'); }
+    }
+    function displayCurrentGrid(){
+      const colorSequence = _grids[_currentGridIndex] || [];
+      const numTiles = colorSequence.length;
+      const tileSize = parseInt(tileSizeEl.value || 64, 10);
+
+      if(numTiles===0){
+        canvas.width=640; canvas.height=120;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.font='16px '+getComputedStyle(document.body).fontFamily;
+        ctx.fillStyle='#666'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('No grid to display.', canvas.width/2, canvas.height/2);
+        updateUI(); return;
+      }
+      const {rows, cols} = calculateGridDimensions(numTiles);
+      canvas.width = cols * tileSize; canvas.height = rows * tileSize;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      colorSequence.forEach((color,i)=>{
+        const col = i % cols, row = Math.floor(i/cols);
+        ctx.fillStyle = color;
+        ctx.fillRect(col*tileSize, row*tileSize, tileSize, tileSize);
+        ctx.strokeStyle = '#ccc';
+        ctx.strokeRect(col*tileSize, row*tileSize, tileSize, tileSize);
+      });
+      updateUI();
+      const idxs = colorSequence.map(c => (BigInt('0x'+c.slice(1)) + 1n).toString());
+      const idStr = idxs.map(s => s.padStart(7,'0')).join('');
+      document.getElementById('current-grid-id').textContent = 'Compounded ID: ' + idStr;
+      document.getElementById('color-list').innerHTML = colorSequence.map(c => {
+        const id = (BigInt('0x'+c.slice(1)) + 1n).toString();
+        return '<li>ID '+id+': '+c+'</li>';
+      }).join('');
+      updateColorBar(decodeIDtoColorIndexes(idStr));
+    }
+    function updateUI(){
+      const colorSequence = _grids[_currentGridIndex] || [];
+      document.getElementById('current-grid-position').textContent = 'Grid '+(_grids.length>0? _currentGridIndex+1:0)+' of '+_grids.length;
+      prevBtn.disabled = _currentGridIndex===0;
+      nextBtn.disabled = _currentGridIndex>=_grids.length-1;
+      dlBtn.disabled = colorSequence.length===0;
+      exportGridBtn.disabled = colorSequence.length===0;
+      saveGridBtn.disabled = colorSequence.length===0;
+    }
+    function navigateGrid(dir){
+      const newIndex = _currentGridIndex + dir;
+      if(newIndex>=0 && newIndex<_grids.length){ _currentGridIndex=newIndex; displayCurrentGrid(); }
+    }
+    function downloadGridImage(){
+      const image = canvas.toDataURL('image/png');
+      const a = document.createElement('a'); a.href=image; a.download='grid_'+(_currentGridIndex+1)+'.png'; a.click();
+    }
+    function exportCurrentGrid(){
+      const colorSequence = _grids[_currentGridIndex] || [];
+      const payload = { colors: colorSequence, ts: Date.now(), meta:{ index:_currentGridIndex+1, total:_grids.length, app:'WARD' } };
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)], {type:'application/json'}));
+      a.download = 'grid.json'; a.click();
+    }
+    async function saveCurrentGrid(){
+      const colorSequence = _grids[_currentGridIndex] || [];
+      if(colorSequence.length===0) return;
+      await WardDB.saveGrid({ name:'Grid '+(_currentGridIndex+1), colors: colorSequence });
+      toast('Grid saved.'); refreshSavedGrids();
+    }
+    async function refreshSavedGrids(){
+      const list = await WardDB.listGrids();
+      const ul = document.getElementById('saved-grids'); ul.innerHTML='';
+      list.forEach(g=>{
+        const dt = new Date(g.ts||Date.now()).toLocaleString();
+        const li = document.createElement('li');
+        li.innerHTML = '<strong>'+(g.name||g.id)+'</strong> <small>(' + dt + ')</small> '
+          + '<button class="btn-load" data-id="'+g.id+'">Load</button> '
+          + '<button class="btn-del" data-id="'+g.id+'">Delete</button>';
+        ul.appendChild(li);
+      });
+      ul.querySelectorAll('.btn-load').forEach(btn=> btn.addEventListener('click', async e=>{
+        const id = e.target.getAttribute('data-id'); const list = await WardDB.listGrids();
+        const g = list.find(x=>x.id===id); if(!g){ toast('Grid not found'); return; }
+        _grids = [g.colors]; _currentGridIndex = 0; displayCurrentGrid(); switchTab('grid');
+      }));
+      ul.querySelectorAll('.btn-del').forEach(btn=> btn.addEventListener('click', async e=>{
+        const id = e.target.getAttribute('data-id'); await WardDB.deleteGrid(id); refreshSavedGrids();
+      }));
+    }
+    async function loadSettings(){
+      const s = await WardDB.loadSettings();
+      if(typeof s.tileSize==='number'){ tileSizeEl.value = s.tileSize; }
+    }
+    async function saveSettings(){
+      const tileSize = parseInt(tileSizeEl.value,10)||64;
+      await WardDB.saveSettings({ id:'global', tileSize }); toast('Settings saved.');
+    }
+
+    // Wire events
+    tileSizeEl.addEventListener('input', displayCurrentGrid);
+    saveSettingsBtn.addEventListener('click', saveSettings);
+    document.getElementById('generate-grid-by-id').addEventListener('click', generateGridsFromInputs);
+    document.getElementById('execute-button').addEventListener('click', processUploadedFile);
+    prevBtn.addEventListener('click', ()=> navigateGrid(-1));
+    nextBtn.addEventListener('click', ()=> navigateGrid(1));
+    dlBtn.addEventListener('click', downloadGridImage);
+    exportGridBtn.addEventListener('click', exportCurrentGrid);
+    saveGridBtn.addEventListener('click', saveCurrentGrid);
+
+    return { setInputIDAndGenerate, refreshSavedGrids, loadSettings };
+  })();
+  window.AlphabetApp = AlphabetApp;
+
+  // ---------------- Sessions & History ----------------
+  const historyList = document.getElementById('history-list');
+  let history = [];
+  function renderHistory(){ historyList.innerHTML = history.slice().reverse().map(h=>{ const dt = new Date(h.ts).toLocaleString(); const payload = JSON.stringify(h.payload).slice(0,200).replace(/[&<>]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[s])); return '<li><strong>'+h.type+'</strong> <small>'+dt+'</small><br><code>'+payload+'</code></li>'; }).join(''); }
+  function pushHistory(entry){ const doc={ ts:Date.now(), ...entry, payload: entry }; history.push(doc); renderHistory(); }
+  window.pushHistory = pushHistory;
+
+  async function saveSession(){
+    const name = document.getElementById('session-name').value.trim();
+    const settings = await WardDB.loadSettings();
+    const grids = await WardDB.listGrids();
+    const payload = { name, settings, history, savedGrids: grids, ts: Date.now(), version: 'WARD-1.0' };
+    await WardDB.saveSession(payload); toast('Session saved.');
+  }
+  async function loadLatestSession(){
+    const sessions = await WardDB.listSessions();
+    if(sessions.length===0){ toast('No sessions found.'); return; }
+    const latest = sessions[0];
+    if(latest.settings){ await WardDB.saveSettings({ id:'global', ...latest.settings }); await AlphabetApp.loadSettings(); }
+    if(Array.isArray(latest.history)){ history = latest.history; renderHistory(); }
+    if(Array.isArray(latest.savedGrids)){ for(const g of latest.savedGrids){ await WardDB.saveGrid(g); } await AlphabetApp.refreshSavedGrids(); }
+    toast('Latest session loaded.');
+  }
+  async function exportSession(){
+    const settings = await WardDB.loadSettings();
+    const grids = await WardDB.listGrids();
+    const payload = { settings, history, savedGrids: grids, ts: Date.now(), app:'WARD', version:'1.0' };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)], {type:'application/json'}));
+    a.download = 'session.json'; a.click();
+  }
+  async function importSession(){
+    const f = document.getElementById('import-session-file').files[0];
+    if(!f){ toast('Choose a session JSON first.'); return; }
+    try{
+      const obj = JSON.parse(await f.text());
+      if(obj.settings){ await WardDB.saveSettings({ id:'global', ...obj.settings }); await AlphabetApp.loadSettings(); }
+      if(Array.isArray(obj.history)){ history = obj.history; renderHistory(); }
+      if(Array.isArray(obj.savedGrids)){ for(const g of obj.savedGrids){ await WardDB.saveGrid(g); } await AlphabetApp.refreshSavedGrids(); }
+      toast('Session imported.');
+    }catch(e){ toast('Import failed: '+e.message); }
+  }
+  document.getElementById('save-session').addEventListener('click', saveSession);
+  document.getElementById('load-latest-session').addEventListener('click', loadLatestSession);
+  document.getElementById('export-session').addEventListener('click', exportSession);
+  document.getElementById('import-session').addEventListener('click', importSession);
+
+  // ---------------- Pipeline (Text/Integer → Grid IDs; Terrain) ----------------
+  (function(){
+    // Helpers specific to pipeline
+    const BASE = BigInt(UNIQUE_CHARSET.length);
+    function encodeStringToBigIntStr(s){ let id=0n; for(const ch of s){ const idx=UNIQUE_CHARSET.indexOf(ch); if(idx<0) continue; id=id*BASE + BigInt(idx);} return id.toString(); }
+    function decodeBigIntStrToString(dec){ try{ let id=BigInt(dec); if(id===0n) return UNIQUE_CHARSET[0]||''; const out=[]; while(id>0n){ const q=id%BASE; out.push(UNIQUE_CHARSET[Number(q)]); id=id/BASE; } return out.reverse().join(''); }catch(e){ return ''; } }
+    function chunkToGridId(decStr){ const parts=(decStr.match(/[0-9]{1,7}/g)||[]); return parts.join(''); }
+    function gridIdToColors(gridId){ const chunks=(gridId.match(/[0-9]{1,7}/g)||[]).map(s=>parseInt(s,10)); return chunks.map(v=>'#'+(v-1).toString(16).padStart(6,'0')); }
+    function colorsToGridId(colors){ return colors.map(h=>(parseInt(h.slice(1),16)+1).toString().padStart(7,'0')).join(''); }
+    function addList(ul,label,id){ const li=document.createElement('li'); li.innerHTML='<strong>'+label+'</strong><br><code>'+id.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</code>'; ul.appendChild(li); }
+    function setCurrentInputsAndGenerate(ids){
+      const container=document.getElementById('compounded-id-inputs');
+      if(container){ container.innerHTML=''; ids.forEach(id=>{ const row=document.createElement('div'); row.className='compounded-id-input-row'; row.innerHTML='<input class="compounded-id-input" type="text" value="'+id+'">'; container.appendChild(row);});}
+      const genBtn=document.getElementById('generate-grid-by-id'); if(genBtn){ genBtn.click(); }
+    }
+    function status(msg){ const el=document.getElementById('pp-status'); if(el){ el.textContent=msg; } toast(msg, 1600); console.log('[pipeline]', msg); }
+
+    let WORK = [];
+
+    // Text → Grid IDs
+    document.getElementById('pp-text-make').addEventListener('click', ()=>{
+      const txt = document.getElementById('pp-text').value;
+      const splitNL = document.getElementById('pp-split-nl').checked;
+      const splitTAB = document.getElementById('pp-split-tab').checked;
+      const includeEmpty = document.getElementById('pp-include-empty').checked;
+      let units = [txt];
+      if(splitNL) units = txt.split(/\r?\n/);
+      if(splitTAB) units = units.flatMap(s=> s.split('\t'));
+      if(!includeEmpty) units = units.filter(x=>x.length>0);
+      if(units.length===0) return status('No text units.');
+      const gridIds = units.map(u => colorsToGridId(gridIdToColors(chunkToGridId(encodeStringToBigIntStr(u)))));
+      WORK = gridIds;
+      const ul = document.getElementById('pp-gridids'); ul.innerHTML=''; WORK.forEach((id,i)=> addList(ul, '#'+(i+1), id));
+      setCurrentInputsAndGenerate(WORK);
+      status('Text→GridIDs: '+WORK.length);
+    });
+    document.getElementById('pp-text-process').addEventListener('click', async ()=>{
+      const f = document.getElementById('pp-text-file').files[0]; if(!f) return status('Choose a text file first.');
+      let text=''; try{ text=await f.text(); }catch(e){ return status('Failed to read file: '+e.message); }
+      let units=[];
+      if(f.name.toLowerCase().endsWith('.json')){
+        try{ const obj=JSON.parse(text); if(Array.isArray(obj.strings)) units=obj.strings.map(String); else if(typeof obj.text==='string') units=[obj.text]; else if(Array.isArray(obj.lines)) units=obj.lines.map(String);}catch(e){}
+      }
+      if(units.length===0) units=[text];
+      if(document.getElementById('pp-split-nl').checked) units = units.flatMap(s=> s.split(/\r?\n/));
+      if(document.getElementById('pp-split-tab').checked) units = units.flatMap(s=> s.split('\t'));
+      if(!document.getElementById('pp-include-empty').checked) units = units.filter(x=>x.length>0);
+      if(units.length===0) return status('No text units in file.');
+      const gridIds = units.map(u => colorsToGridId(gridIdToColors(chunkToGridId(encodeStringToBigIntStr(u)))));
+      WORK = gridIds;
+      const ul = document.getElementById('pp-gridids'); ul.innerHTML=''; WORK.forEach((id,i)=> addList(ul, '#'+(i+1), id));
+      setCurrentInputsAndGenerate(WORK);
+      status('File(Text)→GridIDs: '+WORK.length);
+    });
+
+    // Integers → Grid IDs (+ try text)
+    document.getElementById('pp-int-make').addEventListener('click', ()=>{
+      const raw = document.getElementById('pp-ints').value;
+      const mode = document.querySelector('input[name="pp-int-mode"]:checked').value;
+      const tryText = document.getElementById('pp-try-decode-text').checked;
+      const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(s=>/^\d+$/.test(s));
+      if(lines.length===0) return status('No integer IDs.');
+      const results=[]; const ul = document.getElementById('pp-results'); ul.innerHTML='';
+      for(const dec of lines){
+        let gridId='', text='';
+        if(mode==='stringid'){ gridId = chunkToGridId(dec); if(tryText) text = decodeBigIntStrToString(dec); }
+        else { gridId = dec; if(tryText){ const parts=(dec.match(/[0-9]{1,7}/g)||[]); const decStr=parts.join(''); text = decodeBigIntStrToString(decStr); } }
+        results.push(gridId);
+        if(text) addList(ul, 'Decoded Text', text);
+        addList(ul, 'Grid ID', gridId);
+      }
+      WORK = results;
+      const ulw = document.getElementById('pp-gridids'); ulw.innerHTML=''; WORK.forEach((id,i)=> addList(ulw, '#'+(i+1), id));
+      setCurrentInputsAndGenerate(WORK);
+      status('Integers→GridIDs: '+WORK.length);
+    });
+    document.getElementById('pp-int-process').addEventListener('click', async ()=>{
+      const f = document.getElementById('pp-int-file').files[0]; if(!f) return status('Choose an integer file first.');
+      let text=''; try{ text=await f.text(); }catch(e){ return status('Failed to read file: '+e.message); }
+      let ints=[]; if(f.name.toLowerCase().endsWith('.json')){ try{ const obj=JSON.parse(text); if(Array.isArray(obj.ids)) ints=obj.ids.map(x=>String(x).trim()); }catch(e){} }
+      if(ints.length===0) ints = text.split(/\r?\n/).map(s=>s.trim()).filter(s=>/^\d+$/.test(s));
+      document.getElementById('pp-ints').value = ints.join('\n'); status('Loaded '+ints.length+' integer id(s).');
+    });
+
+    // Terrain configuration
+    function hexToRgb(h){ const x=parseInt(h.slice(1),16); return [(x>>16)&255,(x>>8)&255,x&255]; }
+    function rgbToHex(r,g,b){ return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0'); }
+    function blend(base, top, mode, alpha){
+      const out=new Array(base.length);
+      for(let i=0;i<base.length;i++){
+        const [br,bg,bb]=hexToRgb(base[i]); const [tr,tg,tb]=hexToRgb(top[i]);
+        let r,g,b;
+        switch(mode){
+          case 'max': r=Math.max(br,tr); g=Math.max(bg,tg); b=Math.max(bb,tb); break;
+          case 'min': r=Math.min(br,tr); g=Math.min(bg,tg); b=Math.min(bb,tb); break;
+          case 'multiply': r=(br*tr)/255; g=(bg*tg)/255; b=(bb*tb)/255; break;
+          case 'overlay':
+            r=br<128?(2*br*tr/255):(255-2*(255-br)*(255-tr)/255);
+            g=bg<128?(2*bg*tg/255):(255-2*(255-bg)*(255-tg)/255);
+            b=bb<128?(2*bb*tb/255):(255-2*(255-bb)*(255-tb)/255);
+            break;
+          default: r=tr; g=tg; b=tb;
+        }
+        r=Math.round(tr*alpha+br*(1-alpha)); g=Math.round(tg*alpha+bg*(1-alpha)); b=Math.round(tb*alpha+bb*(1-alpha));
+        out[i]=rgbToHex(r,g,b);
+      }
+      return out;
+    }
+    function buildMosaic(blocks, M, K, n){
+      const big=[];
+      for(let br=0;br<K;br++){
+        for(let tr=0;tr<n;tr++){
+          for(let bc=0;bc<M;bc++){
+            const block=blocks[br*M+bc];
+            const row=block.slice(tr*n, tr*n+n);
+            big.push(...row);
+          }
+        }
+      }
+      return big;
+    }
+    function limitedPermutations(arr, limit, takeCount){
+      const out=[]; const used=new Array(arr.length).fill(false); const curr=new Array(takeCount);
+      function dfs(pos){
+        if(out.length>=limit) return;
+        if(pos===takeCount){ out.push(curr.slice()); return; }
+        for(let i=0;i<arr.length;i++){
+          if(used[i]) continue;
+          used[i]=true; curr[pos]=arr[i]; dfs(pos+1); used[i]=false;
+          if(out.length>=limit) break;
+        }
+      }
+      dfs(0); return out;
+    }
+    function limitedSubsets(arr, maxSize, limit){
+      const out=[]; const n=arr.length;
+      function dfs(start,k,buf){
+        if(out.length>=limit) return;
+        if(buf.length===k){ out.push(buf.slice()); return; }
+        for(let i=start;i<n;i++){ buf.push(arr[i]); dfs(i+1,k,buf); buf.pop(); if(out.length>=limit) break; }
+      }
+      for(let k=2;k<=maxSize && out.length<limit; k++){ dfs(0,k,[]); }
+      return out;
+    }
+
+    document.getElementById('pp-configure').addEventListener('click', ()=>{
+      const M = parseInt(document.getElementById('pp-mz-across').value,10)||1;
+      const K = parseInt(document.getElementById('pp-mz-down').value,10)||1;
+      const PMAX = parseInt(document.getElementById('pp-mz-max').value,10)||1;
+      const cmpMode = document.getElementById('pp-cmp-mode').value;
+      const cmpAlpha = Math.max(0, Math.min(1, parseFloat(document.getElementById('pp-cmp-alpha').value)||1));
+      const cmpK = Math.max(2, parseInt(document.getElementById('pp-cmp-k').value,10)||2);
+      const CMAX = parseInt(document.getElementById('pp-cmp-max').value,10)||1;
+
+      if(WORK.length===0) return status('Working set is empty.');
+
+      const results=[]; const ul = document.getElementById('pp-results'); ul.innerHTML='';
+
+      // mosaics
+      const needed=M*K;
+      if(needed>0 && WORK.length>=needed){
+        const perms = limitedPermutations(WORK.slice(0), PMAX, needed);
+        for(const p of perms){
+          const colorsBlocks = p.map(colorsId => gridIdToColors(colorsId));
+          const n = Math.sqrt(colorsBlocks[0].length)|0;
+          if(!colorsBlocks.every(a=>a.length===n*n)) continue;
+          const big = buildMosaic(colorsBlocks, M, K, n);
+          const gridId = colorsToGridId(big);
+          results.push({type:'mosaic', ids:p, gridId});
+          addList(ul, 'Mosaic', gridId);
+        }
+      }
+
+      // composites
+      const subs = limitedSubsets(WORK, cmpK, CMAX);
+      for(const s of subs){
+        const layers = s.map(gridIdToColors);
+        const n = Math.sqrt(layers[0].length)|0;
+        if(!layers.every(a=>a.length===n*n)) continue;
+        let out = layers[0].slice();
+        for(let i=1;i<layers.length;i++){ out = blend(out, layers[i], cmpMode, cmpAlpha); }
+        const gridId = colorsToGridId(out);
+        results.push({type:'composite', ids:s, gridId, mode:cmpMode, alpha:cmpAlpha});
+        addList(ul, 'Composite', gridId);
+      }
+
+      if(results.length>0){ setCurrentInputsAndGenerate([results[results.length-1].gridId]); }
+      document.getElementById('panel-grid').scrollIntoView({behavior:'smooth'});
+      status('Generated '+results.length+' terrain(s).');
+      document.getElementById('pp-configure')._pp_results = results;
+    });
+
+    document.getElementById('pp-export-manifest').addEventListener('click', ()=>{
+      const results = document.getElementById('pp-configure')._pp_results || [];
+      const manifest = { ts: Date.now(), inputs: WORK, results };
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(manifest,null,2)], {type:'application/json'}));
+      a.download = 'terrain-manifest.json'; a.click();
+    });
+  })();
+
+  // Boot
+  (async function(){
+    await AlphabetApp.loadSettings();
+    await AlphabetApp.refreshSavedGrids();
+  })();
+})();
+</script>
+
+</body>
+</html>
