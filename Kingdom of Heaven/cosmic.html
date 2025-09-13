@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cosmic 3D — BigInt Coordinate Plotter (No-Noise)</title>
+<style>
+  :root{
+    --bg0: #070713;
+    --bg1: #0b0f2a;
+    --panel: #141a3a;
+    --ink: #d6dcff;
+    --muted: #97a0d6;
+    --accent: #7aa2ff;
+    --accent2:#a46bff;
+    --ok: #66ffcc;
+    --warn:#ffd166;
+    --err: #ff6b6b;
+  }
+  html, body{ height:100%; margin:0; background: radial-gradient(1200px 1200px at 70% -10%, rgba(122,162,255,0.12), transparent 60%), radial-gradient(900px 900px at -10% 80%, rgba(164,107,255,0.15), transparent 60%), linear-gradient(180deg, var(--bg1), var(--bg0)); color: var(--ink); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell; overflow:hidden;}
+  .app{ display:grid; grid-template-columns: 340px 1fr; grid-template-rows: 100%; height:100%; }
+  .panel{ height:100%; background: linear-gradient(180deg, rgba(20,26,58,.85), rgba(20,26,58,.65)); border-right: 1px solid rgba(122,162,255,.15); backdrop-filter: blur(6px); padding: 16px 14px; overflow:auto; }
+  .brand{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .dot{ width:10px; height:10px; border-radius:50%; background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--ok), var(--accent)); box-shadow: 0 0 12px rgba(122,162,255,.6), 0 0 24px rgba(164,107,255,.35); }
+  h1{ font-size:16px; margin:0; letter-spacing:.3px; }
+  .sub{ color:var(--muted); font-size:12px; margin-top:2px; }
+  fieldset{ border: 1px solid rgba(122,162,255,.2); border-radius: 12px; padding: 10px 12px 12px; margin: 10px 0 12px; }
+  legend{ padding: 0 8px; color: var(--accent); font-weight: 600; letter-spacing:.2px; }
+  label{ display:block; margin: 6px 0 4px; color:var(--muted); }
+  input[type="text"]{ width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgba(122,162,255,.2); background: rgba(7,7,19,.6); color:var(--ink); outline:none; }
+  input[type="file"]{ width:100%; }
+  button, .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; background: linear-gradient(180deg, rgba(122,162,255,.25), rgba(164,107,255,.2)); color: var(--ink); border: 1px solid rgba(122,162,255,.3); padding: 8px 10px; border-radius: 12px; cursor: pointer; transition: .15s ease; }
+  button:hover{ transform: translateY(-1px); box-shadow: 0 4px 18px rgba(122,162,255,.25); }
+  .row{ display:flex; gap:8px; }
+  .row > *{ flex:1; }
+  .slider{ display:grid; grid-template-columns: 1fr 70px; gap:10px; align-items:center; }
+  input[type="range"]{ width:100%; }
+  .pill{ display:inline-block; padding:2px 8px; border-radius:99px; background: rgba(122,162,255,.15); border:1px solid rgba(122,162,255,.25); color:var(--muted); font-size:12px; }
+  .tiny{ font-size:12px; color:var(--muted); }
+  .scene{ position: relative; }
+  #three{ position:absolute; inset:0; }
+  .overlay{ position:absolute; top:10px; left:10px; display:flex; flex-direction:column; gap:8px; }
+  .card{ background: rgba(16,23,55,.6); border: 1px solid rgba(122,162,255,.25); border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(4px); }
+  .key{ color:var(--muted); } .val{ color:var(--ok); }
+  .footer{ margin-top:10px; color:var(--muted); font-size:12px; }
+  .row.align{ align-items:center; }
+  .row .label { flex: 0 0 120px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <h1>Cosmic 3D Plotter</h1>
+        <div class="sub">Deterministic, BigInt-friendly, non‑arbitrary.</div>
+      </div>
+    </div>
+
+    <fieldset>
+      <legend>Manual point</legend>
+      <div class="row">
+        <div><label>X (BigInt)</label><input id="xIn" type="text" placeholder="e.g. 0 or -1234567890123" /></div>
+        <div><label>Y (BigInt)</label><input id="yIn" type="text" placeholder="e.g. 0" /></div>
+        <div><label>Z (BigInt)</label><input id="zIn" type="text" placeholder="e.g. 0" /></div>
+      </div>
+      <div class="row" style="margin-top:8px;"><button id="addBtn">Add point</button><button id="clearBtn">Clear</button></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Import</legend>
+      <label>Upload text file <span class="pill">x,y,z per line</span></label>
+      <input id="fileIn" type="file" accept=".txt,.csv,.tsv" />
+      <div class="tiny">Separators: comma, space, tab. Comments: lines starting with <code>#</code> or <code>//</code>.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Scaling & View</legend>
+      <label>Scaling mode</label>
+      <div class="row">
+        <button id="modeLinear" class="btn">Linear</button>
+        <button id="modeLog" class="btn">Log</button>
+      </div>
+      <div class="slider" style="margin-top:8px;"><label>Global scale</label><input id="scaleSlider" type="range" min="0.1" max="10" value="1" step="0.1" /></div>
+      <div class="slider"><label>Point size</label><input id="sizeSlider" type="range" min="1" max="10" value="4" step="1" /></div>
+      <div class="row" style="margin-top:8px;"><button id="fitBtn">Fit view</button><button id="exportBtn">Export JSON</button></div>
+      <div class="tiny footer">Keyboard: <span class="pill">F</span> fit • <span class="pill">C</span> clear</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Background</legend>
+      <div class="row align">
+        <div class="label">Show starfield</div>
+        <input id="starsOn" type="checkbox" />
+      </div>
+      <div class="slider">
+        <label>Star density</label><input id="starsDensity" type="range" min="0" max="3000" value="1200" step="50" />
+      </div>
+    </fieldset>
+  </aside>
+
+  <main class="scene">
+    <div id="three"></div>
+    <div class="overlay">
+      <div class="card tiny">
+        <div><span class="key">Points:</span> <span id="statPoints" class="val">0</span></div>
+        <div><span class="key">Mode:</span> <span id="statMode" class="val">linear</span></div>
+        <div><span class="key">Bounds:</span> <span id="statBounds" class="val">∅</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+(() => {
+  const isBigIntLike = s => /^[-+]?\d+$/.test(s.trim());
+  function parseTriple(line){
+    const cleaned = line.replace(/[\[\]\(\)]/g,'').trim();
+    if(!cleaned || cleaned.startsWith('#') || cleaned.startsWith('//')) return null;
+    const parts = cleaned.split(/[\s,]+/).filter(Boolean);
+    if(parts.length !== 3) throw new Error('Expected 3 integers, got '+parts.length);
+    const [xs,ys,zs] = parts;
+    if(!isBigIntLike(xs) || !isBigIntLike(ys) || !isBigIntLike(zs)) throw new Error('Non-integer value detected');
+    return [BigInt(xs), BigInt(ys), BigInt(zs)];
+  }
+  function boundsFromPoints(P){
+    if(P.length===0) return null;
+    let minX=P[0][0], maxX=P[0][0], minY=P[0][1], maxY=P[0][1], minZ=P[0][2], maxZ=P[0][2];
+    for(const [x,y,z] of P){ if(x<minX) minX=x; if(x>maxX) maxX=x; if(y<minY) minY=y; if(y>maxY) maxY=y; if(z<minZ) minZ=z; if(z>maxZ) maxZ=z; }
+    return {minX,maxX,minY,maxY,minZ,maxZ};
+  }
+  function makeLinearNormalizer(P){
+    const b = boundsFromPoints(P); if(!b) return null;
+    const cx = (b.minX + b.maxX) / 2n, cy = (b.minY + b.maxY) / 2n, cz = (b.minZ + b.maxZ) / 2n;
+    const hx = (b.maxX - b.minX) / 2n, hy = (b.maxY - b.minY) / 2n, hz = (b.maxZ - b.minZ) / 2n;
+    const one = 1n, SCALE = 1000000000n;
+    const safeHx = hx>0n ? hx : one, safeHy = hy>0n ? hy : one, safeHz = hz>0n ? hz : one;
+    const normAxis = (v,c,h)=> Math.max(-1, Math.min(1, Number(((v-c)*SCALE)/h) / 1e9 ));
+    return { map:(x,y,z)=>[normAxis(x,cx,safeHx), normAxis(y,cy,safeHy), normAxis(z,cz,safeHz)], bounds:b };
+  }
+  const bigIntAbs = v => (v>=0n ? v : -v);
+  function makeLogNormalizer(P){
+    const b = boundsFromPoints(P); if(!b) return null;
+    const cx = (b.minX + b.maxX) / 2n, cy = (b.minY + b.maxY) / 2n, cz = (b.minZ + b.maxZ) / 2n;
+    const log10BigIntApprox = big => {
+      if(big===0n) return 0;
+      const s = big.toString(); const neg = s[0]==='-'; const digits = neg ? s.slice(1) : s;
+      if(digits==='0') return 0;
+      const L = digits.length, keep = Math.min(16, L);
+      const mant = Number(digits.slice(0, keep)), exp10 = L - keep;
+      const approx = Math.log10(mant) + exp10;
+      return neg ? -approx : approx;
+    };
+    const axisMax = (arr,c)=> arr.reduce((m,v)=>{ const a=log10BigIntApprox(bigIntAbs(v-c)); return isFinite(a)&&a>m?a:m; },0) || 1;
+    const maxX = axisMax(P.map(p=>p[0]), cx), maxY = axisMax(P.map(p=>p[1]), cy), maxZ = axisMax(P.map(p=>p[2]), cz);
+    const normAxis = (v,c,m)=>{ const d=v-c; const a=log10BigIntApprox(bigIntAbs(d)+1n); const s=d<0n?-1: d>0n?1:0; return Math.max(-1, Math.min(1, (s*(a/m)) )); };
+    return { map:(x,y,z)=>[normAxis(x,cx,maxX), normAxis(y,cy,maxY), normAxis(z,cz,maxZ)], bounds:b };
+  }
+  function colorFor(x,y,z){
+    const m = Number((bigIntAbs(x)+bigIntAbs(y)+bigIntAbs(z)) % 360n);
+    const c = new THREE.Color(); c.setHSL(m/360, 0.7, 0.6); return c;
+  }
+
+  let scene, renderer, camera, controls, pointCloud, pointGeo, pointMat, axes, bboxLines, starField=null;
+  const container = document.getElementById('three');
+  const starsOnEl = document.getElementById('starsOn');
+  const starsDensityEl = document.getElementById('starsDensity');
+
+  function initThree(){
+    const w = container.clientWidth || container.parentElement.clientWidth;
+    const h = container.clientHeight || container.parentElement.clientHeight;
+    renderer = new THREE.WebGLRenderer({antialias:true, alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.setSize(w,h); container.appendChild(renderer.domElement);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(55, w/h, 0.01, 5000); camera.position.set(2.5,2.0,2.5);
+    controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = .06; controls.rotateSpeed=.8; controls.zoomSpeed=.8; controls.panSpeed=.8;
+    axes = new THREE.AxesHelper(1.5); scene.add(axes);
+    bboxLines = new THREE.Group(); scene.add(bboxLines);
+    pointGeo = new THREE.BufferGeometry();
+    pointMat = new THREE.PointsMaterial({ size: 4, sizeAttenuation: true, transparent: true, opacity: 0.95, vertexColors: true });
+    pointCloud = new THREE.Points(pointGeo, pointMat); scene.add(pointCloud);
+    window.addEventListener('resize', onResize);
+    animate();
+  }
+  function makeStarField(count, radius, seed){
+    let s = seed>>>0; const rnd=()=>{ s^=s<<13; s^=s>>>17; s^=s<<5; return (s>>>0)/4294967296; };
+    const pos=new Float32Array(count*3), col=new Float32Array(count*3);
+    for(let i=0;i<count;i++){ const r=radius*Math.pow(rnd(),.5), th=rnd()*Math.PI*2, ph=Math.acos(2*rnd()-1);
+      const x=r*Math.sin(ph)*Math.cos(th), y=r*Math.sin(ph)*Math.sin(th), z=r*Math.cos(ph);
+      pos[i*3]=x; pos[i*3+1]=y; pos[i*3+2]=z; const c=new THREE.Color().setHSL((0.6+0.2*rnd())%1,.6,.8);
+      col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b; }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3));
+    return new THREE.Points(g, new THREE.PointsMaterial({size:1.5,sizeAttenuation:true,transparent:true,opacity:.7,vertexColors:true}));
+  }
+  function setStars(){
+    // remove existing
+    if(starField){ scene.remove(starField); starField.geometry.dispose(); starField.material.dispose(); starField=null; }
+    if(!starsOnEl.checked) return;
+    const count = parseInt(starsDensityEl.value, 10) || 0;
+    starField = makeStarField(count, 250, 1337);
+    scene.add(starField);
+  }
+  function onResize(){ const w = container.clientWidth || container.parentElement.clientWidth; const h = container.clientHeight || container.parentElement.clientHeight; renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); }
+
+  const P=[]; let mode='linear', normalizer=null, scale=1.0;
+  const statPoints=document.getElementById('statPoints'), statMode=document.getElementById('statMode'), statBounds=document.getElementById('statBounds');
+  function updateStats(){ statPoints.textContent=String(P.length); statMode.textContent=mode; if(P.length===0){ statBounds.textContent='∅'; return; } const b=boundsFromPoints(P.map(p=>[p.x,p.y,p.z])); const s=v=>v.toString(); statBounds.textContent=`X[${s(b.minX)}, ${s(b.maxX)}] Y[${s(b.minY)}, ${s(b.maxY)}] Z[${s(b.minZ)}, ${s(b.maxZ)}]`; }
+  function recomputeNormalizer(){ const arr=P.map(p=>[p.x,p.y,p.z]); normalizer=(mode==='linear')?makeLinearNormalizer(arr):makeLogNormalizer(arr); }
+  function clearBBox(){ while(bboxLines.children.length) bboxLines.remove(bboxLines.children[0]); }
+  function drawBBox(){ clearBBox(); if(!normalizer) return; const s=scale, pts=[[-s,-s,-s],[s,-s,-s],[s,s,-s],[-s,s,-s],[-s,-s,s],[s,-s,s],[s,s,s],[-s,s,s]], edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]; const g=new THREE.BufferGeometry(); const arr=new Float32Array(edges.length*2*3);
+    for(let i=0;i<edges.length;i++){ const [a,b]=edges[i], p=pts[a], q=pts[b]; arr[i*6]=p[0]; arr[i*6+1]=p[1]; arr[i*6+2]=p[2]; arr[i*6+3]=q[0]; arr[i*6+4]=q[1]; arr[i*6+5]=q[2]; }
+    g.setAttribute('position', new THREE.BufferAttribute(arr,3)); const m=new THREE.LineBasicMaterial({color:0x2b3fae,transparent:true,opacity:.6}); bboxLines.add(new THREE.LineSegments(g,m)); }
+  function rebuildPoints(){
+    if(P.length===0){ pointGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0),3)); pointGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0),3)); clearBBox(); updateStats(); return; }
+    recomputeNormalizer(); const pos=new Float32Array(P.length*3), col=new Float32Array(P.length*3);
+    for(let i=0;i<P.length;i++){ const p=P[i]; const [nx,ny,nz]=normalizer.map(p.x,p.y,p.z); pos[i*3]=nx*scale; pos[i*3+1]=ny*scale; pos[i*3+2]=nz*scale; const c=colorFor(p.x,p.y,p.z); col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b; }
+    pointGeo.setAttribute('position', new THREE.BufferAttribute(pos,3)); pointGeo.setAttribute('color', new THREE.BufferAttribute(col,3)); pointGeo.computeBoundingBox(); drawBBox(); updateStats();
+  }
+  function fitView(){ const d=3.0*scale; camera.position.set(d,d*0.8,d); controls.target.set(0,0,0); controls.update(); }
+
+  const xIn=document.getElementById('xIn'), yIn=document.getElementById('yIn'), zIn=document.getElementById('zIn');
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const xv=xIn.value.trim(), yv=yIn.value.trim(), zv=zIn.value.trim();
+    if(!/^[-+]?\d+$/.test(xv)||!/^[-+]?\d+$/.test(yv)||!/^[-+]?\d+$/.test(zv)){ alert('Please enter integers only (no decimals, no exponents).'); return; }
+    P.push({x:BigInt(xv), y:BigInt(yv), z:BigInt(zv)}); rebuildPoints(); xIn.value=yIn.value=zIn.value='';
+  });
+  document.getElementById('clearBtn').addEventListener('click', ()=>{ P.length=0; rebuildPoints(); });
+  document.getElementById('fileIn').addEventListener('change', async e=>{
+    const file=e.target.files[0]; if(!file) return; const text=await file.text(); const lines=text.split(/\r?\n/); let added=0, errs=[];
+    for(let i=0;i<lines.length;i++){ const line=lines[i]; try{ const t=parseTriple(line); if(!t) continue; P.push({x:t[0],y:t[1],z:t[2]}); added++; } catch(err){ errs.push(`Line ${i+1}: ${err.message}`); } }
+    rebuildPoints(); if(errs.length){ console.warn('Some lines failed to parse:\n'+errs.slice(0,10).join('\n')+(errs.length>10?'\n...':'')); alert(`Imported ${added} points. ${errs.length} lines failed (see console).`);} else { alert(`Imported ${added} points.`);}
+  });
+  document.getElementById('modeLinear').addEventListener('click', ()=>{ mode='linear'; rebuildPoints(); });
+  document.getElementById('modeLog').addEventListener('click', ()=>{ mode='log'; rebuildPoints(); });
+  const scaleSlider=document.getElementById('scaleSlider'); scaleSlider.addEventListener('input', ()=>{ scale=parseFloat(scaleSlider.value); rebuildPoints(); });
+  const sizeSlider=document.getElementById('sizeSlider'); sizeSlider.addEventListener('input', ()=>{ pointMat.size=parseFloat(sizeSlider.value); });
+  document.getElementById('fitBtn').addEventListener('click', fitView);
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    const out={ points:P.map(p=>[p.x.toString(),p.y.toString(),p.z.toString()]), mode, note:"BigInt triples are preserved as strings." };
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='cosmic3d_points.json'; a.click(); URL.revokeObjectURL(url);
+  });
+  window.addEventListener('keydown', e=>{ if(e.key==='f'||e.key==='F') fitView(); if(e.key==='c'||e.key==='C'){ P.length=0; rebuildPoints(); } });
+
+  // Background controls
+  starsOnEl.addEventListener('change', setStars);
+  starsDensityEl.addEventListener('input', ()=>{ if(starsOnEl.checked) setStars(); });
+
+  initThree();            // set up scene
+  setStars();             // default OFF (checkbox unchecked)
+  updateStats();          // UI
+})();
+</script>
+</body>
+</html>
