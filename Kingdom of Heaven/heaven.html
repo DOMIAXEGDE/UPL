@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charset Grid Visualizer</title>
+    <style>
+        /* Base Styles */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0069d9;
+            --secondary-color: #6c757d;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --border-color: #dee2e6;
+            --accent-color: #6c757d;
+            --background-color: #ffffff;
+            --text-color: #212529;
+            --panel-background: #f8f9fa;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        /* Tab System */
+        .tab-container {
+            display: flex;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab-button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin-right: 4px;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            transition: background-color 0.2s;
+        }
+
+        .tab-button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .tab-button.active {
+            background-color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .content-panel {
+            display: none;
+            padding: 20px;
+            background-color: var(--panel-background);
+            border-radius: 0 0 5px 5px;
+            margin-bottom: 20px;
+        }
+
+        .content-panel.active {
+            display: block;
+        }
+
+        /* Panel Layout */
+        .panel-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .operation-section {
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .operation-container {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .operation-controls {
+            flex: 0 0 300px;
+            padding: 15px;
+            border-right: 1px solid var(--border-color);
+            background-color: var(--light-color);
+        }
+
+        .operation-result {
+            flex: 1;
+            padding: 15px;
+            min-height: 200px;
+            overflow: auto;
+        }
+
+        /* Form Elements */
+        input, select, button, textarea {
+            font-family: var(--font-family);
+            font-size: 14px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="checkbox"], input[type="radio"] {
+            width: auto;
+            margin-right: 10px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--dark-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 16px;
+            margin: 10px 0;
+            color: var(--dark-color);
+        }
+
+        .row-gap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        /* Grid Visualization */
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            background-color: white;
+            min-height: 300px;
+        }
+
+        .color-status-bar {
+            height: 10px;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        #color-bar {
+            height: 10px;
+            background-color: gray;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+
+        .color-list, .result-list, .history-list, .saved-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .color-list li, .result-list li, .history-list li, .saved-list li {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-list li:hover, .saved-list li:hover {
+            background-color: var(--light-color);
+        }
+
+        .id-display {
+            font-family: monospace;
+            padding: 8px;
+            background-color: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+
+        /* Compounded ID Inputs */
+        .compounded-id-input-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .compounded-id-input {
+            flex-grow: 1;
+        }
+
+        /* Result Containers */
+        .result-container {
+            padding: 10px;
+            background-color: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .success-message {
+            color: var(--success-color);
+            background-color: rgba(40, 167, 69, 0.1);
+            border-color: var(--success-color);
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            background-color: rgba(220, 53, 69, 0.1);
+            border-color: var(--danger-color);
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: var(--secondary-color);
+            margin-bottom: 10px;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            animation: fadeInUp 0.3s, fadeOut 0.3s 1.7s;
+        }
+
+        /* 3D Viewer Specific Styles */
+        #threed-canvas {
+            width: 100%;
+            max-width: 720px;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        /* Session Management */
+        .saved-grids-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .operation-container {
+                flex-direction: column;
+            }
+            
+            .operation-controls {
+                flex: 0 0 auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            .tab-button {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+            
+            header h1 {
+                font-size: 20px;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Charset Grid Visualizer</h1>
+            <div id="tabs" class="tab-container">
+                <button class="tab-button active" data-tab="id-generation">ID Generation</button>
+                <button class="tab-button" data-tab="grid-visualization">Grid Visualization</button>
+                <button class="tab-button" data-tab="text-sequencer">Text Sequencer</button>
+                <button class="tab-button" data-tab="mosaic">Mosaic</button>
+                <button class="tab-button" data-tab="composer">Composer</button>
+                <button class="tab-button" data-tab="three-d">3D Viewer</button>
+                <button class="tab-button" data-tab="sessions">Sessions</button>
+            </div>
+        </header>
+        
+        <main>
+            <!-- ID Generation Panel -->
+            <section id="panel-id-generation" class="content-panel active">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>Calculate String ID</h2>
+                                <textarea id="custom-string" placeholder="Enter text to convert" rows="4"></textarea>
+                                <div id="character-word-count" class="info-text">Characters: 0, Words: 0</div>
+                                <button id="calculate-string-id-btn">Calculate ID</button>
+                                <div id="string-id-result" class="result-container"></div>
+                                
+                                <h2>Decode ID to String</h2>
+                                <input type="text" id="string-id" placeholder="Enter ID to decode">
+                                <button id="decode-id-btn">Decode</button>
+                                <div id="decoded-string-result" class="result-container"></div>
+                            </div>
+                            <div class="operation-result">
+                                <h3>Result</h3>
+                                <div id="map-result-display" class="result-container">
+                                    <p>Select an operation to see results</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Grid Visualization Panel -->
+            <section id="panel-grid-visualization" class="content-panel">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>Grid Settings</h2>
+                                <div class="row-gap">
+                                    <label>Tile Size (px): 
+                                        <input type="number" id="tile-size" min="8" max="128" value="64">
+                                    </label>
+                                    <button id="save-settings">Save Settings</button>
+                                </div>
+                                
+                                <h2>Generate Grid</h2>
+                                <div id="compounded-id-inputs">
+                                    <div class="compounded-id-input-row">
+                                        <input type="text" class="compounded-id-input" placeholder="Enter Compounded ID">
+                                    </div>
+                                </div>
+                                <div class="row-gap">
+                                    <button id="add-id-row">Add ID</button>
+                                    <button id="generate-grid-by-id">Generate Grids</button>
+                                </div>
+                                
+                                <h2>File Import</h2>
+                                <div class="row-gap">
+                                    <input type="file" id="file-input" accept=".txt,.json">
+                                    <button id="execute-button">Process File</button>
+                                </div>
+                                
+                                <div class="color-status-bar">
+                                    <div id="color-bar" title="Validation status"></div>
+                                </div>
+                                
+                                <div class="row-gap">
+                                    <button id="prev-grid" disabled>Previous Grid</button>
+                                    <span id="current-grid-position">Grid 0 of 0</span>
+                                    <button id="next-grid" disabled>Next Grid</button>
+                                </div>
+                                
+                                <div class="row-gap">
+                                    <button id="save-grid-to-db">Save Current Grid</button>
+                                    <button id="download-grid-image" disabled>Export PNG</button>
+                                    <button id="export-current-grid" disabled>Export JSON</button>
+                                </div>
+                                
+                                <h3>Current Grid ID</h3>
+                                <div id="current-grid-id" class="id-display"></div>
+                                
+                                <h3>Saved Grids</h3>
+                                <div class="saved-grids-container">
+                                    <ul id="saved-grids" class="saved-list"></ul>
+                                </div>
+                            </div>
+                            <div class="operation-result">
+                                <h3>Grid Display</h3>
+                                <div class="canvas-container">
+                                    <canvas id="grid-canvas" width="560" height="560"></canvas>
+                                </div>
+                                <details>
+                                    <summary>Color List</summary>
+                                    <ul id="color-list" class="color-list"></ul>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Text Sequencer Panel -->
+            <section id="panel-text-sequencer" class="content-panel">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>Text Sequencer</h2>
+                                <p>Use a .txt file (or paste) to create a sequence of grids. One line = one unit (or disable splitting for whole-file-as-one).</p>
+                                <div class="row-gap">
+                                    <input type="file" id="seq-file" accept=".txt,.json">
+                                    <button id="seq-process-file">Process Text File</button>
+                                </div>
+                                <textarea id="seq-textarea" rows="8" placeholder="Paste text here..."></textarea>
+                                <div class="row-gap">
+                                    <label><input type="checkbox" id="seq-split-lines" checked/> Split into lines</label>
+                                    <label><input type="checkbox" id="seq-include-empty" /> Include empty lines</label>
+                                    <label><input type="number" id="seq-autoplay-ms" min="0" value="0" title="0 = no autoplay"/> Autoplay (ms/step)</label>
+                                </div>
+                                <div class="row-gap">
+                                    <button id="seq-make">Make Sequence</button>
+                                    <button id="seq-play">Play</button>
+                                    <button id="seq-stop" disabled>Stop</button>
+                                </div>
+                                <div class="row-gap">
+                                    <small>Whitespace support: space, tab (\t), newline (\n), carriage return (\r), non-breaking space (U+00A0).</small>
+                                </div>
+                            </div>
+                            <div class="operation-result">
+                                <h3>Generated IDs</h3>
+                                <ul id="seq-id-list" class="result-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Mosaic Panel -->
+            <section id="panel-mosaic" class="content-panel">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>Mosaic (Concatenate)</h2>
+                                <div class="row-gap">
+                                    <label>Blocks across (m) <input id="mz-across" type="number" min="1" value="2"></label>
+                                    <label>Blocks down (k) <input id="mz-down" type="number" min="1" value="2"></label>
+                                </div>
+                                <button id="mz-build">Build Mosaic From Current IDs (row-major)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Composer Panel -->
+            <section id="panel-composer" class="content-panel">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>Composer (Layer Stack)</h2>
+                                <div class="row-gap">
+                                    <label>Mode
+                                        <select id="cmp-mode">
+                                            <option>normal</option>
+                                            <option>max</option>
+                                            <option>min</option>
+                                            <option>multiply</option>
+                                            <option>overlay</option>
+                                        </select>
+                                    </label>
+                                    <label>Opacity (top layer)
+                                        <input id="cmp-alpha" type="number" min="0" max="1" step="0.05" value="1">
+                                    </label>
+                                </div>
+                                <button id="cmp-compose">Compose From Current IDs</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 3D Viewer Panel -->
+            <section id="panel-three-d" class="content-panel">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>3D Cube Viewer</h2>
+                                <div class="row-gap">
+                                    <label>Source
+                                        <select id="threed-source">
+                                            <option value="current">Use current Compounded ID input</option>
+                                            <option value="manual">Manual ID</option>
+                                        </select>
+                                    </label>
+                                    <label>Colour format
+                                        <select id="threed-format">
+                                            <option value="hex">hex (#rrggbb)</option>
+                                            <option value="rgb">rgb(r,g,b)</option>
+                                        </select>
+                                    </label>
+                                    <label>Render mode
+                                        <select id="threed-mode">
+                                            <option value="cubes">cubes</option>
+                                            <option value="points">points</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <textarea id="threed-manual" rows="4" placeholder="Manual Compounded ID (digits only) — optional" style="display:none"></textarea>
+                                <div class="row-gap">
+                                    <label>Voxel scale
+                                        <input id="threed-vscale" type="range" min="20" max="120" value="80">
+                                    </label>
+                                    <label>Point size (px)
+                                        <input id="threed-ptsize" type="number" min="1" value="8">
+                                    </label>
+                                    <label>Stroke
+                                        <input id="threed-stroke" type="checkbox">
+                                    </label>
+                                    <label>Back-face culling
+                                        <input id="threed-cull" type="checkbox" checked>
+                                    </label>
+                                </div>
+                                <div class="row-gap">
+                                    <button id="threed-validate">Validate</button>
+                                    <button id="threed-render">Render 3D Cube</button>
+                                    <button id="threed-export" disabled>Export PNG</button>
+                                </div>
+                                <div id="threed-status" class="result-container"></div>
+                            </div>
+                            <div class="operation-result">
+                                <canvas id="threed-canvas" width="720" height="520" style="background:#f5f5f5; border:1px solid #ccc; cursor:grab;"></canvas>
+                                <div><small>Tip: drag to rotate, mouse wheel to zoom.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Sessions Panel -->
+            <section id="panel-sessions" class="content-panel">
+                <div class="panel-content">
+                    <div class="operation-section">
+                        <div class="operation-container">
+                            <div class="operation-controls">
+                                <h2>Sessions & Context</h2>
+                                <div class="row-gap">
+                                    <label>Session Name:
+                                        <input type="text" id="session-name" placeholder="My Session">
+                                    </label>
+                                </div>
+                                <div class="row-gap">
+                                    <button id="save-session">Save Session</button>
+                                    <button id="load-latest-session">Load Latest</button>
+                                </div>
+                                <div class="row-gap">
+                                    <button id="export-session">Export Session JSON</button>
+                                    <input type="file" id="import-session-file" accept=".json">
+                                    <button id="import-session">Import Session</button>
+                                </div>
+                            </div>
+                            <div class="operation-result">
+                                <h3>History</h3>
+                                <ul id="history-list" class="history-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <div id="toast" class="toast"></div>
+    </div>
+    
+    <script>
+        // Tiny IndexedDB wrapper with graceful localStorage fallback
+        (function(global){
+          const DB_NAME = 'CharsetGridDB';
+          const DB_VERSION = 1;
+          const STORE_SETTINGS = 'settings';
+          const STORE_SESSIONS = 'sessions';
+          const STORE_GRIDS = 'grids';
+
+          function withIDB(action){
+            return new Promise((resolve, reject) => {
+              if(!('indexedDB' in global)){
+                return reject(new Error('IndexedDB not supported'));
+              }
+              const openReq = indexedDB.open(DB_NAME, DB_VERSION);
+              openReq.onupgradeneeded = (e) => {
+                const db = openReq.result;
+                if(!db.objectStoreNames.contains(STORE_SETTINGS)){
+                  db.createObjectStore(STORE_SETTINGS, { keyPath: 'id' });
+                }
+                if(!db.objectStoreNames.contains(STORE_SESSIONS)){
+                  const s = db.createObjectStore(STORE_SESSIONS, { keyPath: 'id', autoIncrement: true });
+                  s.createIndex('ts', 'ts');
+                }
+                if(!db.objectStoreNames.contains(STORE_GRIDS)){
+                  const g = db.createObjectStore(STORE_GRIDS, { keyPath: 'id' });
+                  g.createIndex('ts', 'ts');
+                }
+              };
+              openReq.onerror = () => reject(openReq.error);
+              openReq.onsuccess = () => action(openReq.result).then(resolve, reject);
+            });
+          }
+
+          function idbGet(store, key){
+            return withIDB(db => new Promise((resolve, reject)=>{
+              const tx = db.transaction(store, 'readonly');
+              const req = tx.objectStore(store).get(key);
+              req.onsuccess = ()=> resolve(req.result);
+              req.onerror = ()=> reject(req.error);
+            }));
+          }
+          function idbPut(store, value){
+            return withIDB(db => new Promise((resolve, reject)=>{
+              const tx = db.transaction(store, 'readwrite');
+              const req = tx.objectStore(store).put(value);
+              req.onsuccess = ()=> resolve(req.result);
+              req.onerror = ()=> reject(req.error);
+            }));
+          }
+          function idbGetAll(store, index=null, direction='prev'){
+            return withIDB(db => new Promise((resolve, reject)=>{
+              const tx = db.transaction(store, 'readonly');
+              const os = tx.objectStore(store);
+              const source = index ? os.index(index) : os;
+              const results = [];
+              const req = source.openCursor(null, direction);
+              req.onsuccess = (e)=>{
+                const cursor = e.target.result;
+                if(cursor){ results.push(cursor.value); cursor.continue(); }
+                else resolve(results);
+              };
+              req.onerror = ()=> reject(req.error);
+            }));
+          }
+          function idbDelete(store, key){
+            return withIDB(db => new Promise((resolve, reject)=>{
+              const tx = db.transaction(store, 'readwrite');
+              const req = tx.objectStore(store).delete(key);
+              req.onsuccess = ()=> resolve(true);
+              req.onerror = ()=> reject(req.error);
+            }));
+          }
+
+          // Fallbacks
+          function lsGet(key){
+            try { return Promise.resolve(JSON.parse(localStorage.getItem(key))); }
+            catch{ return Promise.resolve(null); }
+          }
+          function lsSet(key, value){
+            try { localStorage.setItem(key, JSON.stringify(value)); return Promise.resolve(true); }
+            catch(e){ return Promise.reject(e); }
+          }
+          function lsList(prefix){
+            const res = [];
+            for(let i=0;i<localStorage.length;i++){
+              const k = localStorage.key(i);
+              if(k && k.startsWith(prefix)){
+                try{ res.push(JSON.parse(localStorage.getItem(k))); }catch{}
+              }
+            }
+            return Promise.resolve(res);
+          }
+          function lsDel(key){
+            try { localStorage.removeItem(key); return Promise.resolve(true); } catch(e){ return Promise.reject(e); }
+          }
+
+          const api = {
+            async saveSettings(settings){
+              try { await idbPut(STORE_SETTINGS, { id: 'global', ...settings }); }
+              catch{ await lsSet('settings:global', settings); }
+              return true;
+            },
+            async loadSettings(){
+              try {
+                const v = await idbGet(STORE_SETTINGS, 'global');
+                return v || (await lsGet('settings:global')) || {};
+              } catch {
+                return (await lsGet('settings:global')) || {};
+              }
+            },
+            async saveSession(session){
+              const doc = { ts: Date.now(), ...session };
+              try { const id = await idbPut(STORE_SESSIONS, doc); return { id, ...doc }; }
+              catch { // push into array fallback
+                const list = (await lsGet('sessions:list')) || [];
+                list.push(doc);
+                await lsSet('sessions:list', list);
+                return doc;
+              }
+            },
+            async listSessions(){
+              try { return await idbGetAll(STORE_SESSIONS, 'ts', 'prev'); }
+              catch { const list = (await lsGet('sessions:list')) || []; return list.reverse(); }
+            },
+            async saveGrid(grid){
+              const id = grid.id || crypto.randomUUID();
+              const doc = { id, ts: Date.now(), ...grid };
+              try { await idbPut(STORE_GRIDS, doc); return doc; }
+              catch { await lsSet('grid:'+id, doc); return doc; }
+            },
+            async listGrids(){
+              try { return await idbGetAll(STORE_GRIDS, 'ts', 'prev'); }
+              catch { return await lsList('grid:'); }
+            },
+            async deleteGrid(id){
+              try { await idbDelete(STORE_GRIDS, id); }
+              catch { await lsDel('grid:'+id); }
+              return true;
+            }
+          };
+
+          global.CharsetDB = api;
+        })(typeof window !== 'undefined' ? window : globalThis);
+
+        // Standalone app adapted from the GOS module version.
+        // Core mapping + visualization logic, plus persistence via CharsetDB.
+        (async function(){
+          // --- Toast helper ---
+          const toastEl = document.getElementById('toast');
+          function toast(msg, ms=2200){
+            toastEl.textContent = msg;
+            toastEl.style.display = 'block';
+            clearTimeout(toastEl._t);
+            toastEl._t = setTimeout(()=> toastEl.style.display='none', ms);
+          }
+          window.toast = toast;
+
+          // --- Tabs ---
+          const tabs = document.querySelectorAll('.tab-button');
+          const panels = document.querySelectorAll('.content-panel');
+          function switchTab(target){
+            panels.forEach(p => p.classList.toggle('active', p.id === `panel-${target}`));
+            tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === target));
+          }
+          tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+
+          // --- App Config (optional) ---
+          let appConfig = {
+            id: 'charset-grid-viewer',
+            title: 'Charset Grid Viewer',
+            description: 'Standalone tool',
+            version: '1.0.0'
+          };
+          try {
+            if (location.protocol !== 'file:') {
+              const res = await fetch('app-config.json');
+              if (res.ok) { appConfig = await res.json(); }
+            }
+          } catch (e) { /* ignore: offline/file protocol */ }
+
+          // --- Charset Map (ranges adapted from original) ---
+          const CHARSET_RANGES = [
+            { name: 'Basic Latin', range: [0x0020, 0x007F] }, { name: 'Latin-1 Supplement', range: [0x0080, 0x00FF] },
+            { name: 'Latin Extended-A', range: [0x0100, 0x017F] }, { name: 'Latin Extended-B', range: [0x0180, 0x024F] },
+            { name: 'Greek and Coptic', range: [0x0370, 0x03FF] }, { name: 'Cyrillic', range: [0x0400, 0x04FF] },
+            { name: 'Arabic', range: [0x0600, 0x06FF] }, { name: 'Hebrew', range: [0x0590, 0x05FF] },
+            { name: 'Devanagari', range: [0x0900, 0x097F] }, { name: 'Mathematical Operators', range: [0x2200, 0x22FF] },
+            { name: 'Supplemental Mathematical Operators', range: [0x2A00, 0x2AFF] }, { name: 'Miscellaneous Technical', range: [0x2300, 0x23FF] },
+            { name: 'Miscellaneous Symbols and Arrows', range: [0x2190, 0x21FF] }, { name: 'CJK Unified Ideographs', range: [0x4E00, 0x9FFF] },
+            { name: 'Hangul Syllables', range: [0xAC00, 0xD7AF] }, { name: 'Hiragana', range: [0x3040, 0x309F] },
+            { name: 'Katakana', range: [0x30A0, 0x30FF] }, { name: 'Bopomofo', range: [0x3100, 0x312F] },
+            { name: 'Currency Symbols', range: [0x20A0, 0x20CF] }, { name: 'Additional Punctuation', range: [0x2000, 0x206F] }
+          ];
+          function generateCharset(){
+            const set = new Set();
+            CHARSET_RANGES.forEach(b => {
+              for(let i=b.range[0]; i<=b.range[1]; i++){
+                try { set.add(String.fromCharCode(i)); } catch {}
+              }
+            });
+            set.add('\n'); set.add('\t');
+            return Array.from(set);
+          }
+          const UNIQUE_CHARSET = generateCharset();
+
+          // --- Shared helpers ---
+          function downloadFile(filename, content, mimetype='text/plain'){
+            const blob = new Blob([content], { type: mimetype });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+          }
+          function decodeIDtoColorIndexes(idString){
+            if(!idString) return [];
+            return (idString.match(/.{1,7}/g) || []).map(s => parseInt(s, 10));
+          }
+          function updateColorBar(indexes){
+            const bar = document.getElementById('color-bar');
+            const isSq = (n) => n>0 && Math.sqrt(n)%1===0;
+            const isValid = (idxs) => idxs.every(x => Number.isFinite(x) && x>=1 && x<=16777216);
+            if(isSq(indexes.length) && isValid(indexes)){
+              bar.style.backgroundColor = 'green';
+              bar.title = 'Valid: the number of color indexes forms a perfect square.';
+            } else {
+              bar.style.backgroundColor = 'red';
+              bar.title = 'Invalid: the number of color indexes does not form a perfect square.';
+            }
+          }
+          function idToHex(id){
+            id = BigInt(id);
+            if(id <= 0n) return '#000000';
+            return '#' + (id - 1n).toString(16).padStart(6, '0');
+          }
+          function calculateGridDimensions(numTiles){
+            if(numTiles===0) return { rows:0, cols:0 };
+            const side = Math.ceil(Math.sqrt(numTiles));
+            return { rows: side, cols: side };
+          }
+
+          // --- Module: ID Generation ---
+          (function(){
+            const elShowGen = document.getElementById('show-generate-combinations');
+            const elShowCalc = document.getElementById('show-calculate-string-id');
+            const elShowDecode = document.getElementById('show-decode-id');
+            const elShowOptimal = document.getElementById('show-find-optimal-variable');
+            const optionContainer = document.getElementById('option-container');
+
+            const viewIds = ['generate-combinations','calculate-string-id','decode-id','find-optimal-variable'];
+            function showOption(id){
+              viewIds.forEach(v => document.getElementById(v).style.display = 'none');
+              document.getElementById(id).style.display = 'block';
+              optionContainer.style.display = 'block';
+            }
+
+            const mapResult = document.getElementById('map-result-display');
+
+            // character/word count
+            const customStringEl = document.getElementById('custom-string');
+            const charWordEl = document.getElementById('character-word-count');
+            function updateCounts(txt){
+              const chars = txt.length;
+              const words = txt.trim()==='' ? 0 : txt.trim().split(/\s+/).length;
+              charWordEl.textContent = `Characters: ${chars}, Words: ${words}`;
+            }
+            customStringEl.addEventListener('input', (e)=> updateCounts(e.target.value));
+            updateCounts('');
+
+            function calculateStringID(){
+              try{
+                const inputString = customStringEl.value;
+                if(inputString.trim() === '') throw new Error('Input string cannot be empty.');
+                mapResult.innerHTML = '<p>Calculating...</p>';
+                setTimeout(()=>{
+                  try{
+                    const invalid = [...new Set([...inputString].filter(ch => !UNIQUE_CHARSET.includes(ch)))];
+                    if(invalid.length>0) throw new Error('Invalid characters found: ' + invalid.join(''));
+                    let id = 0n;
+                    const base = BigInt(UNIQUE_CHARSET.length);
+                    for(const ch of inputString){
+                      id = id * base + BigInt(UNIQUE_CHARSET.indexOf(ch));
+                    }
+                    const resultText = id.toString();
+                    document.getElementById('string-id-result').innerText = 'Result ID: ' + resultText;
+
+                    const indexes = decodeIDtoColorIndexes(resultText);
+                    updateColorBar(indexes);
+
+                    mapResult.innerHTML = `<p>✅ Calculation complete. ID: <strong>${resultText}</strong></p>
+                      <button id="send-id-to-viewer">Visualize This ID</button>`;
+
+                    document.getElementById('send-id-to-viewer').addEventListener('click', ()=>{
+                      AlphabetApp.setInputIDAndGenerate(resultText);
+                      switchTab('grid-visualization');
+                    });
+
+                    // history context
+                    pushHistory({ type:'calc-id', input: inputString, id: resultText });
+                  }catch(err){
+                    mapResult.innerHTML = `<p class="error-message">${err.message}</p>`;
+                  }
+                }, 40);
+              }catch(err){
+                mapResult.innerHTML = `<p class="error-message">${err.message}</p>`;
+              }
+            }
+
+            function decodeID(){
+              try{
+                const idStr = document.getElementById('string-id').value.trim();
+                if(!/^\d+$/.test(idStr)) throw new Error('ID must be a valid non-negative integer.');
+                let id = BigInt(idStr);
+                mapResult.innerHTML = '<p>Decoding ID...</p>';
+                setTimeout(()=>{
+                  try{
+                    const base = BigInt(UNIQUE_CHARSET.length);
+                    let decoded = [];
+                    if(id === 0n && UNIQUE_CHARSET.length>0){
+                      decoded.push(UNIQUE_CHARSET[0]);
+                    } else {
+                      while(id > 0n){
+                        decoded.push(UNIQUE_CHARSET[Number(id % base)]);
+                        id /= base;
+                      }
+                    }
+                    const out = decoded.reverse().join('');
+                    document.getElementById('decoded-string-result').innerText = 'Decoded String: ' + out;
+                    mapResult.innerHTML = `<p>Decoding complete. Result: <pre>${out.replace(/[&<>]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))}</pre></p>`;
+                    pushHistory({ type:'decode-id', id: idStr, output: out });
+                  }catch(err){
+                    mapResult.innerHTML = `<p class="error-message">Error decoding ID: ${err.message}</p>`;
+                  }
+                }, 40);
+              }catch(err){
+                mapResult.innerHTML = `<p class="error-message">${err.message}</p>`;
+              }
+            }
+
+            document.getElementById('calculate-string-id-btn').addEventListener('click', calculateStringID);
+            document.getElementById('decode-id-btn').addEventListener('click', decodeID);
+          })();
+
+          // --- Module: Grid Visualization ---
+          const AlphabetApp = (function(){
+            let _grids = [];
+            let _currentGridIndex = 0;
+            let _defaultTileSize = 64;
+
+            const canvas = document.getElementById('grid-canvas');
+            const ctx = canvas.getContext('2d');
+            const tileSizeEl = document.getElementById('tile-size');
+            const saveSettingsBtn = document.getElementById('save-settings');
+            const prevBtn = document.getElementById('prev-grid');
+            const nextBtn = document.getElementById('next-grid');
+            const dlBtn = document.getElementById('download-grid-image');
+            const exportGridBtn = document.getElementById('export-current-grid');
+            const saveGridBtn = document.getElementById('save-grid-to-db');
+
+            function setInputIDAndGenerate(id){
+              const inputField = document.querySelector('.compounded-id-input');
+              inputField.value = id;
+              generateGridsFromInputs();
+            }
+            function regenerateGrids(compoundedIDs){
+              _grids = compoundedIDs.map(id => (id.trim().match(/.{1,7}/g) || []).map(chunk => idToHex(chunk)));
+              _currentGridIndex = 0;
+              displayCurrentGrid();
+              toast(`${_grids.length} grid(s) generated.`);
+              document.getElementById('save-grid-to-db').disabled = _grids.length === 0;
+            }
+            function generateGridsFromInputs(){
+              const ids = [...document.querySelectorAll('.compounded-id-input')].map(i => i.value.trim()).filter(Boolean);
+              if(ids.length===0){ toast('Please enter at least one ID.'); return; }
+              regenerateGrids(ids);
+              pushHistory({ type:'grids-from-ids', ids });
+            }
+            async function processUploadedFile(){
+              const file = document.getElementById('file-input').files[0];
+              if(!file){ toast('Please select a file.'); return; }
+              const text = await file.text();
+              let ids = [];
+              try {
+                if(file.name.endsWith('.json')){
+                  const obj = JSON.parse(text);
+                  if(Array.isArray(obj.ids)) ids = obj.ids.map(String);
+                }
+              } catch {}
+              if(ids.length===0){
+                ids = text.split('\n').map(l => l.trim()).filter(l => /^\d+$/.test(l));
+              }
+              if(ids.length>0){
+                regenerateGrids(ids);
+                pushHistory({ type:'grids-from-file', file: file.name, count: ids.length });
+              } else {
+                toast('No valid IDs found in file.');
+              }
+            }
+            function displayCurrentGrid(){
+              const colorSequence = _grids[_currentGridIndex] || [];
+              const numTiles = colorSequence.length;
+
+              if(numTiles===0){
+                canvas.width = 560; canvas.height = 120;
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                ctx.font = '16px ' + getComputedStyle(document.body).fontFamily;
+                ctx.fillStyle = '#888'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText('No grid to display.', canvas.width/2, canvas.height/2);
+                updateUI(); return;
+              }
+
+              const tileSize = parseInt(tileSizeEl.value || _defaultTileSize, 10);
+              const { rows, cols } = calculateGridDimensions(numTiles);
+              canvas.width = cols * tileSize; canvas.height = rows * tileSize;
+
+              ctx.clearRect(0,0,canvas.width,canvas.height);
+              colorSequence.forEach((color, i) => {
+                const col = i % cols, row = Math.floor(i/cols);
+                ctx.fillStyle = color;
+                ctx.fillRect(col*tileSize, row*tileSize, tileSize, tileSize);
+                ctx.strokeStyle = '#ccc';
+                ctx.strokeRect(col*tileSize, row*tileSize, tileSize, tileSize);
+              });
+
+              updateUI();
+              const idxs = colorSequence.map(c => (BigInt('0x'+c.slice(1)) + 1n).toString());
+              const idStr = idxs.join('').padStart(idxs.length*7,'0'); // consistent width join
+              document.getElementById('current-grid-id').textContent = 'Compounded ID: ' + idStr;
+              document.getElementById('color-list').innerHTML = colorSequence.map(c => {
+                const id = (BigInt('0x'+c.slice(1)) + 1n).toString();
+                return `<li>ID ${id}: ${c}</li>`;
+              }).join('');
+
+              updateColorBar(decodeIDtoColorIndexes(idStr));
+            }
+            function updateUI(){
+              const colorSequence = _grids[_currentGridIndex] || [];
+              document.getElementById('current-grid-position').textContent = `Grid ${_grids.length>0 ? _currentGridIndex+1 : 0} of ${_grids.length}`;
+              prevBtn.disabled = _currentGridIndex === 0;
+              nextBtn.disabled = _currentGridIndex >= _grids.length - 1;
+              dlBtn.disabled = colorSequence.length === 0;
+              exportGridBtn.disabled = colorSequence.length === 0;
+              saveGridBtn.disabled = colorSequence.length === 0;
+            }
+            function navigateGrid(dir){
+              const newIndex = _currentGridIndex + dir;
+              if(newIndex>=0 && newIndex < _grids.length){
+                _currentGridIndex = newIndex;
+                displayCurrentGrid();
+              }
+            }
+            function downloadGridImage(){
+              const image = canvas.toDataURL('image/png');
+              const a = document.createElement('a');
+              a.href = image; a.download = `grid_${_currentGridIndex+1}.png`; a.click();
+            }
+            function exportCurrentGrid(){
+              const colorSequence = _grids[_currentGridIndex] || [];
+              const payload = {
+                colors: colorSequence,
+                ts: Date.now(),
+                meta: { index: _currentGridIndex+1, total: _grids.length, app: appConfig.id }
+              };
+              downloadFile('grid.json', JSON.stringify(payload, null, 2), 'application/json');
+            }
+            async function saveCurrentGrid(){
+              const colorSequence = _grids[_currentGridIndex] || [];
+              if(colorSequence.length===0) return;
+              const doc = await CharsetDB.saveGrid({
+                name: `Grid ${_currentGridIndex+1}`,
+                colors: colorSequence
+              });
+              toast('Grid saved.');
+              refreshSavedGrids();
+            }
+            async function refreshSavedGrids(){
+              const list = await CharsetDB.listGrids();
+              const ul = document.getElementById('saved-grids');
+              ul.innerHTML = '';
+              list.forEach(g => {
+                const li = document.createElement('li');
+                const dt = new Date(g.ts || Date.now()).toLocaleString();
+                li.innerHTML = `<strong>${g.name || g.id}</strong> <small>(${dt})</small>
+                  <button data-id="${g.id}" class="btn-load">Load</button>
+                  <button data-id="${g.id}" class="btn-del">Delete</button>`;
+                ul.appendChild(li);
+              });
+              ul.querySelectorAll('.btn-load').forEach(btn => btn.addEventListener('click', async (e)=>{
+                const id = e.target.getAttribute('data-id');
+                const list = await CharsetDB.listGrids();
+                const g = list.find(x => x.id===id);
+                if(!g){ toast('Grid not found'); return; }
+                _grids = [g.colors];
+                _currentGridIndex = 0;
+                displayCurrentGrid();
+                switchTab('grid-visualization');
+              }));
+              ul.querySelectorAll('.btn-del').forEach(btn => btn.addEventListener('click', async (e)=>{
+                const id = e.target.getAttribute('data-id');
+                await CharsetDB.deleteGrid(id);
+                refreshSavedGrids();
+              }));
+            }
+
+            // Settings persistence
+            async function loadSettings(){
+              const s = await CharsetDB.loadSettings();
+              if(typeof s.tileSize === 'number'){
+                tileSizeEl.value = s.tileSize;
+              }
+            }
+            async function saveSettings(){
+              const tileSize = parseInt(tileSizeEl.value, 10) || 64;
+              await CharsetDB.saveSettings({ id:'global', tileSize });
+              toast('Settings saved.');
+            }
+
+            // Event wiring
+            tileSizeEl.addEventListener('input', displayCurrentGrid);
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            document.getElementById('generate-grid-by-id').addEventListener('click', generateGridsFromInputs);
+            document.getElementById('execute-button').addEventListener('click', processUploadedFile);
+            prevBtn.addEventListener('click', ()=> navigateGrid(-1));
+            nextBtn.addEventListener('click', ()=> navigateGrid(1));
+            dlBtn.addEventListener('click', downloadGridImage);
+            exportGridBtn.addEventListener('click', exportCurrentGrid);
+            saveGridBtn.addEventListener('click', saveCurrentGrid);
+            document.getElementById('add-id-row').addEventListener('click', ()=>{
+              const container = document.getElementById('compounded-id-inputs');
+              const row = document.createElement('div');
+              row.className = 'compounded-id-input-row';
+              row.innerHTML = '<input type="text" class="compounded-id-input" placeholder="Enter Compounded ID">';
+              container.appendChild(row);
+            });
+
+            // public api
+            return {
+              setInputIDAndGenerate,
+              refreshSavedGrids,
+              loadSettings
+            };
+          })();
+          window.AlphabetApp = AlphabetApp; // for other modules
+
+          // --- Module: Sessions & Context ---
+          const historyList = document.getElementById('history-list');
+          let history = [];
+          function renderHistory(){
+            historyList.innerHTML = history.slice().reverse().map(h => {
+              const dt = new Date(h.ts).toLocaleString();
+              const payload = JSON.stringify(h.payload).slice(0,200).replace(/[&<>]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]));
+              return `<li><strong>${h.type}</strong> <small>${dt}</small><br/><code>${payload}</code></li>`;
+            }).join('');
+          }
+          function pushHistory(entry){
+            const doc = { ts: Date.now(), ...entry, payload: entry };
+            history.push(doc);
+            renderHistory();
+          }
+          window.pushHistory = pushHistory;
+
+          async function saveSession(){
+            const name = document.getElementById('session-name').value.trim();
+            const settings = await CharsetDB.loadSettings();
+            const grids = await CharsetDB.listGrids();
+            const payload = { name, settings, history, savedGrids: grids, ts: Date.now(), version: (typeof appConfig.version === 'string' ? appConfig.version : '1.0.0') };
+            const doc = await CharsetDB.saveSession(payload);
+            toast('Session saved.');
+          }
+          async function loadLatestSession(){
+            const sessions = await CharsetDB.listSessions();
+            if(sessions.length===0){ toast('No sessions found.'); return; }
+            const latest = sessions[0];
+            if(latest.settings){
+              await CharsetDB.saveSettings({ id:'global', ...latest.settings });
+              await AlphabetApp.loadSettings();
+            }
+            if(Array.isArray(latest.history)){ history = latest.history; renderHistory(); }
+            if(Array.isArray(latest.savedGrids)){
+              // save them back (acts as sync if coming from localStorage fallback)
+              for(const g of latest.savedGrids){ await CharsetDB.saveGrid(g); }
+              await AlphabetApp.refreshSavedGrids();
+            }
+            toast('Latest session loaded.');
+          }
+          async function exportSession(){
+            const settings = await CharsetDB.loadSettings();
+            const grids = await CharsetDB.listGrids();
+            const payload = { settings, history, savedGrids: grids, ts: Date.now(), app: appConfig.id, version: appConfig.version };
+            downloadFile('session.json', JSON.stringify(payload, null, 2), 'application/json');
+          }
+          async function importSession(){
+            const fileEl = document.getElementById('import-session-file');
+            const f = fileEl.files[0];
+            if(!f){ toast('Choose a session JSON first.'); return; }
+            try {
+              const obj = JSON.parse(await f.text());
+              if(obj.settings){ await CharsetDB.saveSettings({ id:'global', ...obj.settings }); await AlphabetApp.loadSettings(); }
+              if(Array.isArray(obj.history)){ history = obj.history; renderHistory(); }
+              if(Array.isArray(obj.savedGrids)){
+                for(const g of obj.savedGrids){ await CharsetDB.saveGrid(g); }
+                await AlphabetApp.refreshSavedGrids();
+              }
+              toast('Session imported.');
+            } catch (e){
+              toast('Import failed: ' + e.message);
+            }
+          }
+
+          document.getElementById('save-session').addEventListener('click', saveSession);
+          document.getElementById('load-latest-session').addEventListener('click', loadLatestSession);
+          document.getElementById('export-session').addEventListener('click', exportSession);
+          document.getElementById('import-session').addEventListener('click', importSession);
+
+          // Initial boot
+          await AlphabetApp.loadSettings();
+          await AlphabetApp.refreshSavedGrids();
+        })();
+
+        // 3D Cube Viewer Plugin
+        (function(){
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+          } else { init(); }
+
+          function init(){
+            const panel = document.getElementById('panel-three-d');
+            if (!panel) return;
+
+            // Helper functions
+            function chunk7(str){ return (str.match(/[0-9]{1,7}/g) || []); }
+            function idToColorVals(idNum){
+              const v = Math.max(1, Math.min(16777216, idNum|0)) - 1;
+              return [(v>>16)&255, (v>>8)&255, v&255];
+            }
+            function idToHex(idNum){
+              const v = Math.max(1, Math.min(16777216, idNum|0)) - 1;
+              return '#' + v.toString(16).padStart(6,'0');
+            }
+            function idToRGBString(idNum){
+              const [r,g,b] = idToColorVals(idNum);
+              return `rgb(${r},${g},${b})`;
+            }
+            function decodeCompoundedID(idStr, fmt){
+              const chunks = chunk7(idStr);
+              const colors = [];
+              for (const c of chunks){
+                const n = parseInt(c,10);
+                if (!Number.isFinite(n) || n < 1 || n > 16777216) return { ok:false, reason:`Chunk out of range: ${c}` };
+                colors.push(fmt==='rgb' ? idToRGBString(n) : idToHex(n));
+              }
+              return { ok:true, colors, n:colors.length };
+            }
+            function cbrtInt(n){
+              const r = Math.cbrt(n), k = Math.round(r);
+              return (k>0 && Math.abs(k-r)<1e-9) ? k : null;
+            }
+            function getActiveID(){
+              if (elSource.value === 'manual') return (elManual.value||'').trim();
+              const first = document.querySelector('.compounded-id-input');
+              return first ? (first.value||'').trim() : '';
+            }
+            function setStatus(msg, cls){
+              elStatus.className = 'result-container ' + (cls==='success' ? 'success-message' : (cls==='error' ? 'error-message' : ''));
+              elStatus.textContent = msg;
+            }
+            function validate(){
+              const id = getActiveID();
+              if (!id || !/^[0-9]+$/.test(id)){ setStatus('❌ Provide a Compounded ID of digits only.', 'error'); return null; }
+              const dec = decodeCompoundedID(id, elFormat.value);
+              if (!dec.ok){ setStatus('❌ Invalid: '+dec.reason, 'error'); return null; }
+              const k = cbrtInt(dec.n);
+              if (!k){ setStatus(`❌ Invalid: chunk count = ${dec.n}, cube root not integer.`, 'error'); return null; }
+              setStatus(`✅ ${dec.n} voxels (${k}×${k}×${k}), format=${elFormat.value}.`, 'success');
+              return { size:k, colors:dec.colors, id };
+            }
+
+            // 3D math
+            let state = { rotX:-0.9, rotY:0.8, dist:3.0, dragging:false, lastX:0, lastY:0, voxels:null };
+
+            function buildVoxels(size, colors){
+              const pts = [];
+              const half = (size-1)/2;
+              let idx = 0;
+              for (let z=0; z<size; z++)
+                for (let y=0; y<size; y++)
+                  for (let x=0; x<size; x++)
+                    pts.push({ x:x-half, y:y-half, z:z-half, color: colors[idx++] || '#000000' });
+              return pts;
+            }
+
+            function rotate(pt){
+              const {rotX, rotY} = state;
+              const cx=Math.cos(rotX), sx=Math.sin(rotX);
+              const cy=Math.cos(rotY), sy=Math.sin(rotY);
+              let y = pt.y*cx - pt.z*sx;
+              let z = pt.y*sx + pt.z*cx;
+              let x = pt.x*cy + z*sy;
+              z = -pt.x*sy + z*cy;
+              return {x,y,z};
+            }
+            function project(x,y,z,dist){ const f = 160/(dist+z); return { sx:x*f, sy:y*f, depth:z }; }
+
+            function shade(col, f){
+              if (col.startsWith('rgb')){
+                const m = col.match(/rgb\((\d+),(\d+),(\d+)\)/);
+                if (!m) return col;
+                let r=Math.round(parseInt(m[1])*f), g=Math.round(parseInt(m[2])*f), b=Math.round(parseInt(m[3])*f);
+                r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+                return `rgb(${r},${g},${b})`;
+              } else {
+                const n = parseInt(col.slice(1),16);
+                let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+                r=Math.max(0,Math.min(255,Math.round(r*f)));
+                g=Math.max(0,Math.min(255,Math.round(g*f)));
+                b=Math.max(0,Math.min(255,Math.round(b*f)));
+                return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+              }
+            }
+
+            // Faces with normals for shading (x-,x+),(y-,y+),(z-,z+)
+            const FACE_DEF = [
+              // idxs, normal, shade
+              { idx:[0,2,6,4], n:[-1, 0, 0], s:0.55 }, // left
+              { idx:[1,3,7,5], n:[ 1, 0, 0], s:0.65 }, // right
+              { idx:[0,1,5,4], n:[ 0,-1, 0], s:0.70 }, // bottom
+              { idx:[2,3,7,6], n:[ 0, 1, 0], s:0.85 }, // top
+              { idx:[0,1,3,2], n:[ 0, 0,-1], s:0.60 }, // back
+              { idx:[4,5,7,6], n:[ 0, 0, 1], s:0.78 }, // front
+            ];
+
+            function drawPoints(projected){
+              const s = Math.max(1, parseInt(elPt.value||'8',10));
+              const drawStroke = !!elStroke.checked;
+              for (const p of projected){
+                ctx.fillStyle = p.color;
+                ctx.fillRect((p.sx - s/2)|0, (p.sy - s/2)|0, s, s);
+                if (drawStroke){
+                  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                  ctx.strokeRect((p.sx - s/2)|0+0.5, (p.sy - s/2)|0+0.5, s, s);
+                }
+              }
+            }
+
+            function drawCubes(rotatedCenters){
+              const scalePerc = parseInt(elVScale.value||'80',10);
+              const h = (scalePerc/100)*0.5; // cube half-size
+              const quads = [];
+              const cam = {x:0, y:0, z:-state.dist};
+
+              for (const v of rotatedCenters){
+                // Build cube corners in object space, then rotate each corner (center is already base world position)
+                const cornersObj = [
+                  [-h,-h,-h],[ h,-h,-h],[-h, h,-h],[ h, h,-h],
+                  [-h,-h, h],[ h,-h, h],[-h, h, h],[ h, h, h],
+                ].map(c => rotate({x:v.base.x + c[0], y:v.base.y + c[1], z:v.base.z + c[2]}));
+
+                // Optional back-face culling in 3D
+                for (const f of FACE_DEF){
+                  const a = cornersObj[f.idx[0]], b = cornersObj[f.idx[1]], c = cornersObj[f.idx[2]], d = cornersObj[f.idx[3]];
+                  // Compute 3D normal via cross of edges ab x ad
+                  const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+                  const vx = d.x - a.x, vy = d.y - a.y, vz = d.z - a.z;
+                  const nx = uy*vz - uz*vy;
+                  const ny = uz*vx - ux*vz;
+                  const nz = ux*vy - uy*vx;
+                  // Vector from face center to camera:
+                  const cx = cam.x - (a.x+b.x+c.x+d.x)/4;
+                  const cy = cam.y - (a.y+b.y+c.y+d.y)/4;
+                  const cz = cam.z - (a.z+b.z+c.z+d.z)/4;
+                  const facing = (nx*cx + ny*cy + nz*cz) > 0;
+
+                  if (elCull.checked && !facing) continue; // cull faces away from camera
+
+                  // Project corners and enqueue
+                  const pa = project(a.x,a.y,a.z,state.dist);
+                  const pb = project(b.x,b.y,b.z,state.dist);
+                  const pc = project(c.x,c.y,c.z,state.dist);
+                  const pd = project(d.x,d.y,d.z,state.dist);
+                  const avgDepth = (pa.depth+pb.depth+pc.depth+pd.depth)/4;
+
+                  quads.push({
+                    pts:[pa,pb,pc,pd],
+                    color:shade(v.color, f.s),
+                    depth:avgDepth + (facing ? 0.0001 : 0) // tiny bias to reduce z-fighting ordering issues
+                  });
+                }
+              }
+
+              // back-to-front painter
+              quads.sort((A,B)=> A.depth - B.depth);
+              for (const q of quads){
+                ctx.beginPath();
+                ctx.moveTo(q.pts[0].sx, q.pts[0].sy);
+                for (let i=1;i<4;i++) ctx.lineTo(q.pts[i].sx, q.pts[i].sy);
+                ctx.closePath();
+                ctx.fillStyle = q.color;
+                ctx.fill();
+                if (elStroke.checked){ ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.stroke(); }
+              }
+            }
+
+            function draw(){
+              const { voxels } = state;
+              ctx.clearRect(0,0,canvas.width, canvas.height);
+              ctx.save();
+              ctx.translate(canvas.width/2, canvas.height/2);
+
+              if (!voxels){
+                ctx.fillStyle = '#777'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText('No cube to display yet.', 0, 0);
+                ctx.restore();
+                return;
+              }
+
+              // rotate centers
+              const rotated = voxels.pts.map(v=>{
+                const r = rotate(v);
+                return { base:{x:v.x,y:v.y,z:v.z}, x:r.x, y:r.y, z:r.z, color:v.color };
+              });
+
+              if (elMode.value === 'points'){
+                const projected = rotated.map(r=>{ const p=project(r.x,r.y,r.z,state.dist); return { ...p, color:r.color }; });
+                projected.sort((a,b)=> a.depth - b.depth);
+                drawPoints(projected);
+              } else {
+                drawCubes(rotated);
+              }
+              ctx.restore();
+            }
+
+            function renderNow(){
+              const ok = validate();
+              if (!ok) { state.voxels = null; draw(); return; }
+              const pts = buildVoxels(ok.size, ok.colors);
+              state.voxels = { size: ok.size, pts };
+              draw();
+              elExport.disabled = false;
+            }
+
+            // Get element references
+            const elSource = document.getElementById('threed-source');
+            const elFormat = document.getElementById('threed-format');
+            const elMode = document.getElementById('threed-mode');
+            const elPt = document.getElementById('threed-ptsize');
+            const elStroke = document.getElementById('threed-stroke');
+            const elCull = document.getElementById('threed-cull');
+            const elManual = document.getElementById('threed-manual');
+            const elVScale = document.getElementById('threed-vscale');
+            const elValidate = document.getElementById('threed-validate');
+            const elRender = document.getElementById('threed-render');
+            const elExport = document.getElementById('threed-export');
+            const elStatus = document.getElementById('threed-status');
+            const canvas = document.getElementById('threed-canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Events
+            elSource.addEventListener('change', ()=> {
+              elManual.style.display = elSource.value === 'manual' ? '' : 'none';
+            });
+
+            canvas.addEventListener('mousedown', (e)=>{ state.dragging=true; state.lastX=e.clientX; state.lastY=e.clientY; canvas.style.cursor='grabbing'; });
+            window.addEventListener('mouseup', ()=>{ state.dragging=false; canvas.style.cursor='grab'; });
+            window.addEventListener('mousemove', (e)=>{
+              if (!state.dragging) return;
+              const dx=e.clientX-state.lastX, dy=e.clientY-state.lastY;
+              state.lastX=e.clientX; state.lastY=e.clientY;
+              state.rotY += dx*0.01; state.rotX += dy*0.01;
+              draw();
+            });
+            canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); state.dist=Math.max(1.2, Math.min(12, state.dist + (e.deltaY>0?0.2:-0.2))); draw(); }, {passive:false});
+
+            elValidate.addEventListener('click', validate);
+            elRender.addEventListener('click', renderNow);
+            elExport.addEventListener('click', ()=>{ const url=canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download='cube.png'; a.click(); });
+
+            // Initial draw
+            draw();
+          }
+        })();
+
+        // Text Sequencer Plugin
+        (function(){
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+          } else {
+            init();
+          }
+
+          function init(){
+            if (!window.AlphabetApp) {
+              console.warn('[sequencer] AlphabetApp not found. Load app.js before this plugin.');
+            }
+            const gridPanel = document.getElementById('panel-text-sequencer');
+            if (!gridPanel) return;
+
+            // Charset identical to app.js ranges + functional whitespace
+            const CHARSET_RANGES = [
+              { name: 'Basic Latin', range: [0x0020, 0x007F] }, { name: 'Latin-1 Supplement', range: [0x0080, 0x00FF] },
+              { name: 'Latin Extended-A', range: [0x0100, 0x017F] }, { name: 'Latin Extended-B', range: [0x0180, 0x024F] },
+              { name: 'Greek and Coptic', range: [0x0370, 0x03FF] }, { name: 'Cyrillic', range: [0x0400, 0x04FF] },
+              { name: 'Arabic', range: [0x0600, 0x06FF] }, { name: 'Hebrew', range: [0x0590, 0x05FF] },
+              { name: 'Devanagari', range: [0x0900, 0x097F] }, { name: 'Mathematical Operators', range: [0x2200, 0x22FF] },
+              { name: 'Supplemental Mathematical Operators', range: [0x2A00, 0x2AFF] }, { name: 'Miscellaneous Technical', range: [0x2300, 0x23FF] },
+              { name: 'Miscellaneous Symbols and Arrows', range: [0x2190, 0x21FF] }, { name: 'CJK Unified Ideographs', range: [0x4E00, 0x9FFF] },
+              { name: 'Hangul Syllables', range: [0xAC00, 0xD7AF] }, { name: 'Hiragana', range: [0x3040, 0x309F] },
+              { name: 'Katakana', range: [0x30A0, 0x30FF] }, { name: 'Bopomofo', range: [0x3100, 0x312F] },
+              { name: 'Currency Symbols', range: [0x20A0, 0x20CF] }, { name: 'Additional Punctuation', range: [0x2000, 0x206F] }
+            ];
+            function generateCharset(){
+              const set = new Set();
+              CHARSET_RANGES.forEach(b => {
+                for(let i=b.range[0]; i<=b.range[1]; i++){
+                  try { set.add(String.fromCharCode(i)); } catch (e) {}
+                }
+              });
+              set.add('\n'); set.add('\t'); set.add('\r'); set.add('\u00A0');
+              return Array.from(set);
+            }
+            const UNIQUE_CHARSET = generateCharset();
+
+            function strToIdString(s){
+              const base = BigInt(UNIQUE_CHARSET.length);
+              let id = 0n;
+              const invalid = [];
+              for (const ch of s){
+                const idx = UNIQUE_CHARSET.indexOf(ch);
+                if (idx === -1){ invalid.push(ch); continue; }
+                id = id * base + BigInt(idx);
+              }
+              if (invalid.length){
+                console.warn('[sequencer] Skipped unsupported chars:', invalid.map(c=>JSON.stringify(c)).join(''));
+              }
+              return id.toString();
+            }
+
+            // Elements
+            const ta = document.getElementById('seq-textarea');
+            const splitLinesEl = document.getElementById('seq-split-lines');
+            const includeEmptyEl = document.getElementById('seq-include-empty');
+            const autoplayMsEl = document.getElementById('seq-autoplay-ms');
+            const makeBtn = document.getElementById('seq-make');
+            const playBtn = document.getElementById('seq-play');
+            const stopBtn = document.getElementById('seq-stop');
+            const idList = document.getElementById('seq-id-list');
+            const fileEl = document.getElementById('seq-file');
+            const processFileBtn = document.getElementById('seq-process-file');
+
+            let _ids = [];
+            let _timer = null;
+
+            // Build a sequence from an array of strings
+            function buildSequenceFromUnits(units){
+              if (!includeEmptyEl.checked){
+                units = units.filter(line => line.length > 0);
+              }
+              if (units.length === 0){
+                try { window.toast && window.toast('No text to convert.'); } catch (e) {}
+                return;
+              }
+              _ids = units.map(strToIdString).filter(Boolean);
+              renderIdList(_ids);
+              populateAndGenerate(_ids);
+            }
+
+            // Populate existing ID inputs and generate grids
+            function populateAndGenerate(ids){
+              const container = document.getElementById('compounded-id-inputs');
+              if (container){
+                container.innerHTML = '';
+                ids.forEach(id => {
+                  const row = document.createElement('div');
+                  row.className = 'compounded-id-input-row';
+                  row.innerHTML = '<input type="text" class="compounded-id-input" value="'+id+'">';
+                  container.appendChild(row);
+                });
+              }
+              const genBtn = document.getElementById('generate-grid-by-id');
+              if (genBtn){ genBtn.click(); }
+              const gridTab = document.querySelector('.tab-button[data-tab="grid-visualization"]');
+              if (gridTab){ gridTab.click(); }
+            }
+
+            // Render preview list
+            function renderIdList(ids){
+              idList.innerHTML = ids.map((id,i)=> '<li style="padding:6px 10px; border-bottom:1px solid var(--accent-color);">#'+(i+1)+': <code>'+id+'</code></li>').join('');
+            }
+
+            // Autoplay controls
+            function next(){
+              const nextBtn = document.getElementById('next-grid');
+              if (nextBtn && !nextBtn.disabled){ nextBtn.click(); }
+              else stop();
+            }
+            function play(){
+              const ms = Math.max(0, parseInt(autoplayMsEl.value || '0', 10));
+              if (!ms){
+                try { window.toast && window.toast('Set autoplay ms > 0 or step manually.'); } catch (e) {}
+                return;
+              }
+              stop();
+              _timer = setInterval(next, ms);
+              playBtn.disabled = true;
+              stopBtn.disabled = false;
+            }
+            function stop(){
+              if (_timer){ clearInterval(_timer); _timer = null; }
+              playBtn.disabled = false;
+              stopBtn.disabled = true;
+            }
+            playBtn.addEventListener('click', play);
+            stopBtn.addEventListener('click', stop);
+
+            // Manual (textarea) flow
+            makeBtn.addEventListener('click', () => {
+              const text = ta.value;
+              let units = [];
+              if (splitLinesEl.checked){
+                units = text.split(/\r?\n/);
+              } else {
+                units = [text];
+              }
+              buildSequenceFromUnits(units);
+            });
+
+            // File-based flow (like integer sequencing method)
+            processFileBtn.addEventListener('click', async () => {
+              const f = fileEl.files && fileEl.files[0];
+              if (!f){
+                try { window.toast && window.toast('Choose a .txt or .json file first.'); } catch (e) {}
+                return;
+              }
+              try {
+                const text = await f.text();
+                let units = [];
+
+                if (f.name.toLowerCase().endsWith('.json')){
+                  try {
+                    const obj = JSON.parse(text);
+                    if (Array.isArray(obj.strings)) {
+                      units = obj.strings.map(function(x){ return String(x); });
+                    } else if (typeof obj.text === 'string') {
+                      if (splitLinesEl.checked) { units = obj.text.split(/\r?\n/); }
+                      else { units = [obj.text]; }
+                    } else if (Array.isArray(obj.lines)) {
+                      units = obj.lines.map(function(x){ return String(x); });
+                    }
+                  } catch (e) {
+                    // fall back to plain text parsing if JSON parse fails
+                  }
+                }
+
+                if (units.length === 0){
+                  // Treat as plain text
+                  if (splitLinesEl.checked){
+                    units = text.split(/\r?\n/);
+                  } else {
+                    units = [text];
+                  }
+                }
+                buildSequenceFromUnits(units);
+              } catch (e){
+                console.error('[sequencer] Failed to read file:', e);
+                try { window.toast && window.toast('Failed to read file: ' + e.message); } catch (e2) {}
+              }
+            });
+          }
+        })();
+
+        // Mosaic Plugin
+        (function(){
+          if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init); } else { init(); }
+          function init(){
+            const panel=document.getElementById('panel-mosaic'); if(!panel) return;
+            
+            const across=document.getElementById('mz-across');
+            const down=document.getElementById('mz-down');
+            document.getElementById('mz-build').addEventListener('click',()=>{
+              const ids=[...document.querySelectorAll('.compounded-id-input')].map(i=>i.value.trim()).filter(Boolean);
+              const M=parseInt(across.value,10)||1, K=parseInt(down.value,10)||1;
+              if(ids.length!==M*K){
+                if(ids.length>0){
+                  // try a sensible default: across = ids.length, down = 1
+                  const M2 = ids.length; const K2 = 1;
+                  across.value = M2; down.value = K2;
+                  toast(`Adjusted blocks to ${M2}×${K2} to match ${ids.length} ID(s).`);
+                } else {
+                  return toast('No IDs found. Load or enter Compounded IDs first.');
+                }
+              }
+              const blocks=ids.map(id=>decode(id));
+              const n=Math.sqrt(blocks[0].length)|0;
+              if(!blocks.every(a=>a.length===n*n)){ return toast('All blocks must be same size.'); }
+              const big=[];
+              for(let br=0;br<K;br++){
+                for(let tr=0;tr<n;tr++){
+                  for(let bc=0;bc<M;bc++){
+                    const block=blocks[br*M+bc];
+                    const row=block.slice(tr*n, tr*n+n);
+                    big.push(...row);
+                  }
+                }
+              }
+              const newId=encode(big);
+              const container=document.getElementById('compounded-id-inputs');
+              container.innerHTML=`<div class="compounded-id-input-row">
+                <input type="text" class="compounded-id-input" value="${newId}">
+              </div>`;
+              var genBtn=document.getElementById('generate-grid-by-id'); if(genBtn){ genBtn.click(); } else { toast('Generate button not found.'); }
+              toast('Mosaic generated');
+            });
+            function toast(m){ try{ window.toast(m); }catch(e){} }
+            function decode(id){
+              const chunks=(id.match(/[0-9]{1,7}/g)||[]).map(s=>parseInt(s,10));
+              return chunks.map(v=>'#'+(v-1).toString(16).padStart(6,'0'));
+            }
+            function encode(colors){
+              return colors.map(h=>(parseInt(h.slice(1),16)+1).toString().padStart(7,'0')).join('');
+            }
+          }
+        })();
+
+        // Composer Plugin
+        (function(){
+          if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+          function init(){
+            const panel = document.getElementById('panel-composer'); if(!panel) return;
+            
+            const btn = document.getElementById('cmp-compose');
+            const modeEl = document.getElementById('cmp-mode');
+            const alphaEl = document.getElementById('cmp-alpha');
+            btn.addEventListener('click', ()=>{
+              const ids = [...document.querySelectorAll('.compounded-id-input')].map(i=>i.value.trim()).filter(Boolean);
+              if(ids.length<2){ toast('Need ≥ 2 IDs. Add more Compounded IDs or load a file.'); return; }
+              const layers = ids.map(id=>decodeCompoundedIdToColors(id));
+              const n = Math.sqrt(layers[0].length)|0;
+              if(!layers.every(a=>a.length===n*n)){ toast('All grids must be same size'); return; }
+              const mode = modeEl.value;
+              const a = Math.max(0, Math.min(1, parseFloat(alphaEl.value)||1));
+              let out = layers[0].slice();
+              for(let k=1;k<layers.length;k++){ out = blend(out, layers[k], mode, a); }
+              const newId = encodeColorsToCompoundedId(out);
+              const container = document.getElementById('compounded-id-inputs');
+              container.innerHTML = `<div class="compounded-id-input-row"><input type="text" class="compounded-id-input" value="${newId}"></div>`;
+              var genBtn=document.getElementById('generate-grid-by-id'); if(genBtn){ genBtn.click(); } else { toast('Generate button not found.'); }
+              toast('Composite generated');
+            });
+            function toast(m){ try{ window.toast(m); }catch(e){} }
+            function hexToRgb(h){ const x=parseInt(h.slice(1),16); return [(x>>16)&255,(x>>8)&255,x&255]; }
+            function rgbToHex(r,g,b){ return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0'); }
+            function decodeCompoundedIdToColors(id){
+              const chunks=(id.match(/[0-9]{1,7}/g)||[]).map(s=>parseInt(s,10));
+              return chunks.map(v=>rgbToHex(((v-1)>>16)&255,((v-1)>>8)&255,(v-1)&255));
+            }
+            function encodeColorsToCompoundedId(colors){
+              return colors.map(h=>(parseInt(h.slice(1),16)+1).toString().padStart(7,'0')).join('');
+            }
+            function blend(base, top, mode, alpha){
+              const out=new Array(base.length);
+              for(let i=0;i<base.length;i++){
+                const [br,bg,bb]=hexToRgb(base[i]); const [tr,tg,tb]=hexToRgb(top[i]);
+                let r,g,b;
+                switch(mode){
+                  case 'max': r=Math.max(br,tr); g=Math.max(bg,tg); b=Math.max(bb,tb); break;
+                  case 'min': r=Math.min(br,tr); g=Math.min(bg,tg); b=Math.min(bb,tb); break;
+                  case 'multiply': r=(br*tr)/255; g=(bg*tg)/255; b=(bb*tb)/255; break;
+                  case 'overlay':
+                    r=br<128?(2*br*tr/255):(255-2*(255-br)*(255-tr)/255);
+                    g=bg<128?(2*bg*tg/255):(255-2*(255-bg)*(255-tg)/255);
+                    b=bb<128?(2*bb*tb/255):(255-2*(255-bb)*(255-tb)/255);
+                    break;
+                  default: r=tr; g=tg; b=tb;
+                }
+                r=Math.round(tr*alpha+br*(1-alpha));
+                g=Math.round(tg*alpha+bg*(1-alpha));
+                b=Math.round(tb*alpha+bb*(1-alpha));
+                out[i]=rgbToHex(r,g,b);
+              }
+              return out;
+            }
+          }
+        })();
+    </script>
+</body>
+</html>
