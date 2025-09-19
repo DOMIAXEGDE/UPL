@@ -1,1 +1,27 @@
-...
+data generation :
+
+	dataGeneration.c
+
+data entry :
+
+	build.ps1
+	pluginlab-smoke.ps1
+	plugin-smoke.ps1
+	scripted.cpp
+	scripted_core.hpp
+	scripted_kernel.hpp
+	smoke.ps1
+
+data composition :
+
+	compose.py
+	composer.py
+	parse_text.py
+
+database to admin interaction interfaces :
+
+	to be completed ...
+
+database to user interaction interfaces :
+
+	to be completed ...
